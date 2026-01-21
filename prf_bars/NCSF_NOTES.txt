@@ -1,0 +1,31 @@
+[1] activate correct environemnt
+conda activate eyelink
+
+[2] Correct command to get it running 
+python main.py --sub 99 --ses 1 --run 1 --eye 1 --task 2R_scanner # 1 for eye tracking 0 for no eye tracking
+# specify the task like this 
+--task 2R_scanner (for scanner room) 
+--task 2R_psych (for psychophysics room)
+
+[3] Eyetracker 
+* Check the correct eye is selected
+* press (c) to Calibrate
+* press (v) to validate
+* press "esc" to got " WAITING FOR SCANNER screen
+
+-> in the psychophysics room press (t) to start 
+-> in scanner: wait for the scanner to start 
+
+That is it
+
+
+
+# EXPECTED TRS LONG = 225
+# EXPECTED TRS SHORT = 125
+
+
+
+# **** FOR MARCUS SCANNING TODAY ****
+# -> run the following below in the vs code terminal 
+# -> update the run number 
+python main.py --sub ctrl02 --ses LE --run 1 --eye 0 --task 2R_scanner 

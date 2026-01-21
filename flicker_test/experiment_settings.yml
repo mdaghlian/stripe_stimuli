@@ -1,0 +1,191 @@
+
+preferences:
+  general:
+    audioLib: sounddevice
+    units: deg
+
+window: # refers to the parameters for the Psychopy Window class
+  units: pix
+  color: [0, 0, 0] # psychopy rgb
+  fullscr: True #False
+  screen: 0 #1
+  #useRetina: False
+  winType: 'pyglet'
+  waitBlanking: True
+  colorSpace: 'rgb' #'hsv' #'rgb255'
+
+monitor:
+  name: default
+  width: 69 #69.8 #69  # width of monitor (in cm)
+  distance: 210 #225  # distance of participant from monitor (in cm)
+  gamma: 1 # specific value for gamma correction
+
+mouse:
+  visible: False
+
+window_extra: # refers to the parameters for the OLD Psychopy Window class (new version breaks)
+  size: [1920, 1080] #[1680, 1050]
+  pos: [0, 0]
+  framerate: 60
+  display: 'square' # or 'rectangle', defines if square [vRes vRes] or rectangle [hRes vRes] display
+  mac_bool: False
+
+keys: # keys to press, valid for laptop, scanner and behav lab
+  right_index: ['right','b', 2, '2','num_2']
+  left_index: ['left','e', 1, '1','num_1']
+  flicker_continue: ['space','r', '4', 4, 'num_4']
+
+
+stimuli:
+  colorSpace: 'rgb' #'rgb255' #'hsv'
+
+  fix_dot_size_deg: 0.05
+  fix_dot_color: [-1,-1,-1] # psychopy rgb, start with black
+  fix_line_color: [-1,-1,-1] # psychopy rgb
+
+  fix_dot_shift_rate: .25 #Hz, rate of fixation dot color switch
+
+  fix_line_width: 1.2
+  fix_line_color: [-1,-1,-1] # psychopy rgb
+  fix_line_contrast: 0.3
+
+  rect_fill_color: [-1,-1,-1] # psychopy rgb
+  rect_line_color: [-1,-1,-1] # psychopy rgb
+
+  gab_ratio: 0.66 #0.62 # ratio to multiply by gab diameter, to avoid empty spaces in grid
+  element_size: 0.5 #1.1 #0.55 #0.4 #0.2 # degrees
+
+  ori_shift_rate: 5 #'TR' #0.83 #.25 #5 # Hz, rate of element orientation change
+
+  pos_jitter: 0.03 #0.06 #degrees, x,y position jiter to add to gabor center 
+
+  num_elem: [32,32] # number of elements (gabors) per axis
+  
+  prf:
+    bar_width_ratio: 0.125 #0.0625 # ratio of the screen res
+
+    bar_pass_hor_TR: 17 
+    bar_pass_ver_TR: 17 
+    empty_TR: 12 #5
+    empty_long_TR: 20
+
+    flick_rate: 8 # Hz, frequency of flickering
+    flick_stim_rate: 'TR' # 'freq' # rate of change of features in bar 
+    flick_on_off: True # if flickering is stim-on/off screen, or if just flickering with stim-on 
+
+    element_contrast: 1 # do full contrast during prf task
+
+    color_categories: ['color_red','color_green']
+    task_colors: {'color_red': ['orange', 'pink'], 
+                  'color_green': ['yellow', 'blue']}
+    task_on_main_categories: False # if false, then task uses color variants
+
+    bar_pass_direction: ['empty_long','L-R','U-D','empty','R-L','D-U','empty_long','D-U','R-L','empty','U-D','L-R','empty_long']
+
+    sync_scanner: True 
+
+  feature:
+    bar_width_ratio: 0.125 # ratio of the screen res
+
+    empty_TR: 20 #5 # number of TRs during empty period
+    task_trial_TR: 2 # number of TRs per trial of actual task
+
+    bars_phase_dur: 0.5 # phase duration for displaying bars (in seconds) 
+
+    cue_width: .2 #.55
+    cue_height: .5 #1.1
+    cue_contrast: 0.6
+
+    num_bars: 2
+    num_bar_position: [6,6] #[8,8]
+
+    conditions: ['color_red', 'color_green'] # all conditions to be attended during feature trial
+
+    bar_pass_direction: ['empty', 'task', 'empty']
+
+    task_colors: {'color_red': ['orange', 'pink'], 
+                  'color_green': ['yellow', 'blue']}
+
+    sync_scanner: True 
+
+    quest_stair: True # if using quest staircase or costum
+    
+    initial_values: {'color_red': [.5, .5, .5], 
+                    'color_green': [.5, .5, .5]} # value to start staircase, per ecc
+    
+    max_color_level: 60 # max RGB channel value, that staircase will present
+
+  flicker:
+    bar_width_ratio: 0.125 # ratio of the screen res
+
+    num_rep_ecc: 4 #12
+
+    ref_color: 'pink' # reference color is less luminance one - so red + blue
+
+    bar_ecc_index: [0,1,2] #[3,3,1,2,2,1,1,2,1,2] # eccentricity index for bar positions: 0 - furthest ecc; 3 - closest ecc
+
+    flick_rate: 15 #30 #15 # Hz, flicker rate of color for square
+
+    max_trial_time: 5 # max trial time (in minutes)
+
+    backgr_contrast: 0 # contrast for elements, 0 = no background elements shown
+    increment: 0.025 # increment value for luminance per button press
+
+    modulated_condition: ['color_green'] # color condition modulated by flicker task
+
+
+  conditions: # feature conditions
+    background: 
+      element_sf: 6 # cycles/gabor width
+      element_color: [204, 204, 204]  # rgb255, light grey
+      element_ori: [90,180] # half horizontal, half vertical
+      element_contrast: 0.6 #.3 #1 #0.5
+      ori_jitter_max: 1.0 # max value for element orientation jitter range
+      ori_jitter_min: 0 # min value for element orientation jitter range
+
+    color_red:
+      element_sf: 6 # cycles/gabor width
+      element_color: [255, 0, 0] # rgb255
+      element_ori: [45,135] # [right, left]
+      element_contrast: 0.6 #1
+      ori_jitter_max: 1.0 # max value for element orientation jitter range
+      ori_jitter_min: 0 # min value for element orientation jitter range
+      task_color: 
+        orange:
+          element_color: [220, 30, 0] #[204, 50, 0] #[204,0,60] #[255, 0, 0] # rgb255 
+        pink:
+          element_color: [220, 0, 30] #[204, 0, 70] #[204,0,60] #[255, 0, 0] # rgb255  
+
+    color_green:
+      element_sf: 6 # cycles/gabor width
+      element_color:  [0, 255, 0] #rgb255
+      element_ori: [45,135] # [right, left]
+      element_contrast: 0.6 #1
+      ori_jitter_max: 1.0 # max value for element orientation jitter range
+      ori_jitter_min: 0 # min value for element orientation jitter range
+      task_color: 
+        yellow:
+          element_color: [90, 255, 0] #[200,255, 0] #[204,0,60] #[255, 0, 0] # rgb255 
+        blue:
+          element_color: [0, 255, 90] #[0,255,130] #[204,0,60] #[255, 0, 0] # rgb255  
+
+  
+eyetracker:
+  address: '100.1.1.1' #  Eyelink eyetracker IP
+  dot_size: 0.15  # in dva
+  options: # Eyelink specific settings
+    active_eye: left  # [right]
+    calibration_type: HV9  # [H3, HV3, HV5, HV9]
+    sample_rate: 1000
+    calibration_area_proportion: 0.4 0.4
+    validation_area_proportion: 0.4 0.4
+
+mri: # refers to the Psychopy SyncGenerator class
+  scanner: False #True
+  simulate: False
+  TR: 1.6 #1 #1.2  # seconds between volume acquisitions
+  #TA: 2.0  # seconds to acquire one slice (?)
+  #volumes: 10  # number of 3D volumes to obtain in a given scanning run
+  sync: 't'  # character used as flag for sync timing, default=‘5’
+  skip: 0  # how many frames to silently omit initially during T1 stabilization, no sync pulse.
+  sound: False  # simulate scanner noise
