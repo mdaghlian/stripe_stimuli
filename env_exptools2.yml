@@ -1,0 +1,56 @@
+# conda env create -n <whatever-name> -f env_exptools2.yml
+# git clone https://github.com/VU-Cog-Sci/exptools2/
+# cd exptools2
+# pip install -e .
+# pip install --index-url=https://pypi.sr-research.com sr-research-pylink
+# Also need to install the eyelink developers 
+# https://www.sr-research.com/support/thread-13.html
+
+name: exptools2
+channels:
+- conda-forge
+- defaults
+dependencies:
+- python=3.9
+- pip
+- numpy 
+- scipy 
+- matplotlib 
+- pandas 
+- pyopengl 
+- pillow 
+- lxml 
+- openpyxl 
+- xlrd 
+- configobj 
+- pyyaml 
+- gevent 
+- greenlet 
+- msgpack-python 
+- psutil 
+- pytables 
+- 'requests[security]' 
+- cffi 
+- seaborn 
+- wxPython 
+- cython 
+- pyzmq 
+- pyserial 
+- qt 
+- pyqt
+- pyglet 
+- pysoundfile 
+- python-bidi 
+- moviepy 
+- pyosf
+
+- pip:
+  - zmq 
+  - json-tricks 
+  - pyparallel 
+  - sounddevice 
+  - pygame 
+  - pysoundcard
+  - psychopy-sounddevice
+  - psychopy_ext 
+  - psychopy
