@@ -28,10 +28,10 @@ Note that the actual task (fixation dot color discrimination) is identical in al
 In the settings file you should specify the *operating system* that the code is running on, as "operating system: *your OS*" as 'mac', 'linux' or 'windows'
 This is mainly important if you run the stimulus on a mac, as the size of the stimulus needs to be adjusted in that case.
 
-You can change the *task parameters* in the settings file under "Task settings:"
-- you can specify how much time you allow for the participant to respond that still counts as correct response (default is 0.8s), as "response interval: *your time*"
-- you can specify the timing of the color switches (default is 3.5s), as "color switch interval: *your interval*"
+You can change the *task parameters* in the settings file under "task_settings:"
+- you can specify how much time you allow for the participant to respond that still counts as correct response (default is 0.8s), as "response_interval: *your time*"
+- you can specify the timing of the color switches (default is 3.5s), as "color_switch_interval: *your interval*"
 Note: Make sure that the difference between two adjacent color switches is bigger than the time you give the participant to respond. 
-The code adds a randomization of max. +1 or -1 to the color switch times, so e.g. in case of a color switch interval of 3.5, the two closest adjacent color switches will be 1.5s apart, well outside the response interval of 0.8s.
+The code adds a randomization of max. +1 or -1 to the color switch times, so e.g. in case of a color_switch_interval of 3.5, the two closest adjacent color switches will be 1.5s apart, well outside the response_interval of 0.8s.
 
 

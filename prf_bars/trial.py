@@ -27,12 +27,12 @@ class PRFTrial(Trial):
         self.session=session
 
         #here we decide how to go from each trial (bar position) to the next.    
-        if self.session.settings['PRF stimulus settings']['Scanner sync']==True:
+        if self.session.settings['stim_settings']['scanner_sync']==True:
             #dummy value: if scanning or simulating a scanner, everything is synced to the output 't' of the scanner
             phase_durations = [100]
         else:
             #if not synced to a real or simulated scanner, take the bar pass step as length
-            phase_durations = [self.session.settings['PRF stimulus settings']['Bar step length']] 
+            phase_durations = [self.session.settings['stim_settings']['bar_step_length']] 
             
         #add topup time to last trial
         if self.session.settings['mri']['topup_scan']==True:
@@ -61,10 +61,10 @@ class PRFTrial(Trial):
 
                 np.save(opj(self.session.output_dir, self.session.output_str+'_simple_response_data.npy'), {"Expected number of responses":len(self.session.dot_switch_color_times),
                                                                                   "Total subject responses":self.session.total_responses,
-                                                                                  f"Correct responses (within {self.session.settings['Task settings']['response interval']}s of dot color change)":self.session.correct_responses})
+                                                                                  f"Correct responses (within {self.session.settings['task_settings']['response_interval']}s of dot color change)":self.session.correct_responses})
            
-                if self.session.settings['PRF stimulus settings']['Screenshot']==True:
-                    self.session.win.saveMovieFrames(opj(self.session.screen_dir, self.session.output_str+'_Screenshot.png'))
+                if self.session.settings['stim_settings']['screenshot']==True:
+                    self.session.win.saveMovieFrames(opj(self.session.screen_dir, self.session.output_str+'_screenshot.png'))
                      
                 self.session.close()
                 self.session.quit()
@@ -74,11 +74,11 @@ class PRFTrial(Trial):
                 if key == self.session.mri_trigger:
                     event_type = 'pulse'
                     #marco edit. the second bit is a hack to avoid double-counting of the first t when simulating a scanner
-                    if self.session.settings['PRF stimulus settings']['Scanner sync']==True and t>0.1:                       
+                    if self.session.settings['stim_settings']['scanner_sync']==True and t>0.1:                       
                         self.exit_phase=True
                         #ideally, for speed, would want  getMovieFrame to be called right after the first winflip. 
                         #but this would have to be dun from inside trial.run()
-                        if self.session.settings['PRF stimulus settings']['Screenshot']==True:
+                        if self.session.settings['stim_settings']['screenshot']==True:
                             self.session.win.getMovieFrame()
                 else:
                     event_type = 'response'
@@ -87,7 +87,7 @@ class PRFTrial(Trial):
                     #tracking percentage of correct responses per session
                     if self.session.dot_count < len(self.session.dot_switch_color_times): 
                         if t > self.session.dot_switch_color_times[self.session.dot_count] and \
-                            t < self.session.dot_switch_color_times[self.session.dot_count] + float(self.session.settings['Task settings']['response interval']):
+                            t < self.session.dot_switch_color_times[self.session.dot_count] + float(self.session.settings['task_settings']['response_interval']):
                             self.session.correct_responses +=1 
                             print(f'number correct responses: {self.session.correct_responses}') #testing
                              
@@ -115,7 +115,7 @@ class PRFTrial(Trial):
         #update counter
         if self.session.dot_count < len(self.session.dot_switch_color_times): 
             if self.session.clock.getTime() > self.session.dot_switch_color_times[self.session.dot_count] + \
-                float(self.session.settings['Task settings']['response interval'])+0.1: #to give time to respond
+                float(self.session.settings['task_settings']['response_interval'])+0.1: #to give time to respond
                 self.session.dot_count += 1   
                 # print(f'dot count: {self.session.dot_count}') #testing
     

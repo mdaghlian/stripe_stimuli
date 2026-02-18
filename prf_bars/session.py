@@ -31,16 +31,16 @@ class PRFSession(PylinkEyetrackerSession):
         if self.settings['mri']['topup_scan']==True:
             self.topup_scan_duration=self.settings['mri']['topup_duration']
         
-        if self.settings['PRF stimulus settings']['Scanner sync']==True:
+        if self.settings['stim_settings']['scanner_sync']==True:
             self.bar_step_length = self.settings['mri']['TR']
             self.mri_trigger='t'
 
                      
         else:
-            self.bar_step_length = self.settings['PRF stimulus settings']['Bar step length']
+            self.bar_step_length = self.settings['stim_settings']['bar_step_length']
             
-        if self.settings['PRF stimulus settings']['Screenshot']==True:
-            self.screen_dir=output_dir+'/'+output_str+'_Screenshots'
+        if self.settings['stim_settings']['screenshot']==True:
+            self.screen_dir=output_dir+'/'+output_str+'_screenshots'
             if not os.path.exists(self.screen_dir):
                 os.mkdir(self.screen_dir)
             
@@ -63,9 +63,9 @@ class PRFSession(PylinkEyetrackerSession):
         
         #generate PRF stimulus
         self.prf_stim = PRFStim(session=self, 
-                        squares_in_bar=self.settings['PRF stimulus settings']['Squares in bar'], 
-                        bar_width_deg=self.settings['PRF stimulus settings']['Bar width in degrees'],
-                        flicker_frequency=self.settings['PRF stimulus settings']['Checkers motion speed'])#self.deg2pix(self.settings['prf_max_eccentricity']))    
+                        squares_in_bar=self.settings['stim_settings']['squares_in_bar'], 
+                        bar_width_deg=self.settings['stim_settings']['bar_width_in_degrees'],
+                        flicker_frequency=self.settings['stim_settings']['checkers_motion_speed'])#self.deg2pix(self.settings['prf_max_eccentricity']))    
         
 
         #currently unused
@@ -100,8 +100,8 @@ class PRFSession(PylinkEyetrackerSession):
 
 
         #as current basic task, generate fixation circles of different colors, with black border
-        fixation_radius_pixels=tools.monitorunittools.deg2pix(self.settings['PRF stimulus settings']['Size fixation dot in degrees'], self.monitor)/2            
-        if self.settings['PRF stimulus settings']['fixation_method'] == 'dot':        
+        fixation_radius_pixels=tools.monitorunittools.deg2pix(self.settings['stim_settings']['size_fixation_dot_in_degrees'], self.monitor)/2            
+        if self.settings['stim_settings']['fixation_method'] == 'dot':        
             #two colors of the fixation circle for the task
             self.fixation_disk_0 = visual.Circle(self.win, 
                 units='pix', radius=fixation_radius_pixels, 
@@ -110,15 +110,15 @@ class PRFSession(PylinkEyetrackerSession):
             self.fixation_disk_1 = visual.Circle(self.win, 
                 units='pix', radius=fixation_radius_pixels, 
                 fillColor=[-1,1,-1], lineColor=[-1,1,-1])
-        elif self.settings['PRF stimulus settings']['fixation_method'] == 'cross':
+        elif self.settings['stim_settings']['fixation_method'] == 'cross':
             # line_width=tools.monitorunittools.deg2pix(
-            #     self.settings['PRF stimulus settings']['fix_cross_parameters']['line_width'],
+            #     self.settings['stim_settings']['fix_cross_parameters']['line_width'],
             #     self.monitor)  
             # print(line_width)          
-            line_width=self.settings['PRF stimulus settings']['fix_cross_parameters']['line_width']
+            line_width=self.settings['stim_settings']['fix_cross_parameters']['line_width']
 
 
-            dot_radius=self.settings['PRF stimulus settings']['fix_cross_parameters']['dot_radius']
+            dot_radius=self.settings['stim_settings']['fix_cross_parameters']['dot_radius']
             line_radius=50
             # Green 
             self.fixation_disk_0 =  FixationBullsEye(
@@ -148,15 +148,15 @@ class PRFSession(PylinkEyetrackerSession):
         self.total_responses = 0
         self.dot_count = 0
         
-        bar_orientations = np.array(self.settings['PRF stimulus settings']['Bar orientations'])
+        bar_orientations = np.array(self.settings['stim_settings']['bar_orientations'])
         #create as many trials as TRs. 5 extra TRs at beginning + bar passes + blanks
-        self.trial_number = 5 + self.settings['PRF stimulus settings']['Bar pass steps']*len(np.where(bar_orientations != -1)[0]) + self.settings['PRF stimulus settings']['Blanks length']*len(np.where(bar_orientations == -1)[0])
+        self.trial_number = 5 + self.settings['stim_settings']['bar_pass_steps']*len(np.where(bar_orientations != -1)[0]) + self.settings['stim_settings']['blanks_length']*len(np.where(bar_orientations == -1)[0])
   
         print("Expected number of TRs: %d"%self.trial_number)
         #create bar orientation list at each TR (this can be done in many different ways according to necessity)
         #for example, currently blank periods have same length as bar passes. this can easily be changed here
-        steps_array=self.settings['PRF stimulus settings']['Bar pass steps']*np.ones(len(bar_orientations))
-        blanks_array=self.settings['PRF stimulus settings']['Blanks length']*np.ones(len(bar_orientations))
+        steps_array=self.settings['stim_settings']['bar_pass_steps']*np.ones(len(bar_orientations))
+        blanks_array=self.settings['stim_settings']['blanks_length']*np.ones(len(bar_orientations))
     
         repeat_times=np.where(bar_orientations == -1, blanks_array, steps_array).astype(int)
  
@@ -165,12 +165,12 @@ class PRFSession(PylinkEyetrackerSession):
         
         #calculation of positions depend on whether code is run on mac
         if self.settings['operating system'] == 'mac':
-            bar_pos_array = (self.win.size[1]/2)*np.linspace(-0.5,0.5, self.settings['PRF stimulus settings']['Bar pass steps'])
+            bar_pos_array = (self.win.size[1]/2)*np.linspace(-0.5,0.5, self.settings['stim_settings']['bar_pass_steps'])
         else:
-            bar_pos_array = self.win.size[1]*np.linspace(-0.5,0.5, self.settings['PRF stimulus settings']['Bar pass steps'])
+            bar_pos_array = self.win.size[1]*np.linspace(-0.5,0.5, self.settings['stim_settings']['bar_pass_steps'])
         
         
-        blank_array = np.zeros(self.settings['PRF stimulus settings']['Blanks length'])
+        blank_array = np.zeros(self.settings['stim_settings']['blanks_length'])
         
         #the 5 empty trials at beginning
         self.bar_pos_in_ori=np.zeros(5)
@@ -207,7 +207,7 @@ class PRFSession(PylinkEyetrackerSession):
         
         
         #DOT COLOR CHANGE TIMES    
-        self.dot_switch_color_times = np.arange(3, self.total_time, float(self.settings['Task settings']['color switch interval']))
+        self.dot_switch_color_times = np.arange(3, self.total_time, float(self.settings['task_settings']['color_switch_interval']))
         self.dot_switch_color_times += (2*np.random.rand(len(self.dot_switch_color_times))-1)
         
         
@@ -269,16 +269,16 @@ class PRFSession(PylinkEyetrackerSession):
         
         print(f"Expected number of responses: {len(self.dot_switch_color_times)}")
         print(f"Total subject responses: {self.total_responses}")
-        print(f"Correct responses (within {self.settings['Task settings']['response interval']}s of dot color change): {self.correct_responses}")
+        print(f"Correct responses (within {self.settings['task_settings']['response_interval']}s of dot color change): {self.correct_responses}")
         np.save(opj(self.output_dir, self.output_str+'_simple_response_data.npy'), {"Expected number of responses":len(self.dot_switch_color_times),
         														                      "Total subject responses":self.total_responses,
-        														                      f"Correct responses (within {self.settings['Task settings']['response interval']}s of dot color change)":self.correct_responses})
+        														                      f"Correct responses (within {self.settings['task_settings']['response_interval']}s of dot color change)":self.correct_responses})
         
         #print('Percentage of correctly answered trials: %.2f%%'%(100*self.correct_responses/len(self.dot_switch_color_times)))
         
         
-        if self.settings['PRF stimulus settings']['Screenshot']==True:
-            self.win.saveMovieFrames(opj(self.screen_dir, self.output_str+'_Screenshot.png'))
+        if self.settings['stim_settings']['screenshot']==True:
+            self.win.saveMovieFrames(opj(self.screen_dir, self.output_str+'_screenshot.png'))
             
         self.close()
 

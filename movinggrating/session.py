@@ -30,13 +30,13 @@ class GRATESession(PylinkEyetrackerSession):
         #if we are scanning, here I set the mri_trigger manually to the 't'. together with the change in trial.py, this ensures syncing
         if self.settings['mri']['topup_scan']==True:
             self.topup_scan_duration=self.settings['mri']['topup_duration']
-        if self.settings['stim']['scanner_sync']==True:
+        if self.settings['stim_settings']['scanner_sync']==True:
             self.trial_length = self.settings['mri']['TR']
             self.mri_trigger=self.settings['mri']['trigger']
         else:
-            self.trial_length = self.settings['stim']['trial_length']
-        if self.settings['stim']['Screenshot']==True:
-            self.screen_dir=output_dir+'/'+output_str+'_Screenshots'
+            self.trial_length = self.settings['stim_settings']['trial_length']
+        if self.settings['stim_settings']['screenshot']==True:
+            self.screen_dir=output_dir+'/'+output_str+'_screenshots'
             if not os.path.exists(self.screen_dir):
                 os.mkdir(self.screen_dir)
         
@@ -47,16 +47,16 @@ class GRATESession(PylinkEyetrackerSession):
 
     def create_stimuli(self):
         
-        ori_list = self.settings['stim']['trial_ori']
+        ori_list = self.settings['stim_settings']['trial_ori']
         ori_list = [i for i in ori_list if i!=-1]
         ori_list = list(set(ori_list)) # make unique        
         #generate PRF stimulus
         self.grate_stim = DriftingGratings(
             session=self, 
             orientations=ori_list,
-            spatial_frequency=self.settings['stim']['spatial_frequency'],
-            speed_deg_per_sec=self.settings['stim']['speed_deg_per_sec'],
-            radius_deg=self.settings['stim']['radius_deg'],
+            spatial_frequency=self.settings['stim_settings']['spatial_frequency'],
+            speed_deg_per_sec=self.settings['stim_settings']['speed_deg_per_sec'],
+            radius_deg=self.settings['stim_settings']['radius_deg'],
             )    
         
 
@@ -92,8 +92,8 @@ class GRATESession(PylinkEyetrackerSession):
 
 
         #as current basic task, generate fixation circles of different colors, with black border
-        fixation_radius_pixels=tools.monitorunittools.deg2pix(self.settings['stim']['Size fixation dot in degrees'], self.monitor)/2            
-        if self.settings['stim']['fixation_method'] == 'dot':        
+        fixation_radius_pixels=tools.monitorunittools.deg2pix(self.settings['stim_settings']['size_fixation_dot_in_degrees'], self.monitor)/2            
+        if self.settings['stim_settings']['fixation_method'] == 'dot':        
             #two colors of the fixation circle for the task
             self.fixation_disk_0 = visual.Circle(self.win, 
                 units='pix', radius=fixation_radius_pixels, 
@@ -102,13 +102,13 @@ class GRATESession(PylinkEyetrackerSession):
             self.fixation_disk_1 = visual.Circle(self.win, 
                 units='pix', radius=fixation_radius_pixels, 
                 fillColor=[-1,1,-1], lineColor=[-1,1,-1])
-        elif self.settings['stim']['fixation_method'] == 'cross':
+        elif self.settings['stim_settings']['fixation_method'] == 'cross':
             # line_width=tools.monitorunittools.deg2pix(
-            #     self.settings['stim']['fix_cross_parameters']['line_width'],
+            #     self.settings['stim_settings']['fix_cross_parameters']['line_width'],
             #     self.monitor)  
             # print(line_width)          
-            line_width=self.settings['stim']['fix_cross_parameters']['line_width']
-            dot_radius=self.settings['stim']['fix_cross_parameters']['dot_radius']
+            line_width=self.settings['stim_settings']['fix_cross_parameters']['line_width']
+            dot_radius=self.settings['stim_settings']['fix_cross_parameters']['dot_radius']
             line_radius=500 # hackyy to make it all the way...
             # Green 
             self.fixation_disk_0 =  FixationBullsEye(
@@ -140,7 +140,7 @@ class GRATESession(PylinkEyetrackerSession):
         
 
         #create as many trials as TRs. 5 extra TRs at beginning + bar passes + blanks
-        self.trial_ori = self.settings['stim']['trial_ori']
+        self.trial_ori = self.settings['stim_settings']['trial_ori']
         self.blank_trials = 0
         self.stim_trials = 0 
         for i in self.trial_ori:
@@ -149,28 +149,28 @@ class GRATESession(PylinkEyetrackerSession):
             else:
                 self.stim_trials += 1
             
-        self.trial_number = self.settings['stim']['start_blanks'] + \
-            (self.settings['stim']['on_time'] * self.stim_trials) + \
-            (self.settings['stim']['off_time'] * self.blank_trials) + \
-            self.settings['stim']['end_blanks']
+        self.trial_number = self.settings['stim_settings']['start_blanks'] + \
+            (self.settings['stim_settings']['on_time'] * self.stim_trials) + \
+            (self.settings['stim_settings']['off_time'] * self.blank_trials) + \
+            self.settings['stim_settings']['end_blanks']
   
         print("Expected number of TRs: %d"%self.trial_number)
 
         self.trial_ori_full = []
         self.trial_ori_full.extend(
-            [-1]*self.settings['stim']['start_blanks']
+            [-1]*self.settings['stim_settings']['start_blanks']
         )
         for i in self.trial_ori:
             if i == -1:
                 self.trial_ori_full.extend(
-                    [-1] * self.settings['stim']['off_time']
+                    [-1] * self.settings['stim_settings']['off_time']
                 )
             else:
                 self.trial_ori_full.extend(
-                    [i] * self.settings['stim']['on_time']
+                    [i] * self.settings['stim_settings']['on_time']
                 )
         self.trial_ori_full.extend(
-            [-1]*self.settings['stim']['end_blanks']
+            [-1]*self.settings['stim_settings']['end_blanks']
         )
         print(f"Number of trials  = {len(self.trial_ori_full)}")
         print(self.trial_ori_full)
@@ -180,9 +180,9 @@ class GRATESession(PylinkEyetrackerSession):
             self.trial_list.append(GRATETrial(
                 session=self,
                 trial_nr=i,
-                spatial_frequency=self.settings['stim']['spatial_frequency'],
-                speed_deg_per_sec=self.settings['stim']['speed_deg_per_sec'],
-                radius_deg=self.settings['stim']['radius_deg'],
+                spatial_frequency=self.settings['stim_settings']['spatial_frequency'],
+                speed_deg_per_sec=self.settings['stim_settings']['speed_deg_per_sec'],
+                radius_deg=self.settings['stim_settings']['radius_deg'],
                 orientation=self.trial_ori_full[i],
             ))
 
@@ -195,7 +195,7 @@ class GRATESession(PylinkEyetrackerSession):
         
         
         #DOT COLOR CHANGE TIMES    
-        self.dot_switch_color_times = np.arange(3, self.total_time, float(self.settings['task_settings']['color switch interval']))
+        self.dot_switch_color_times = np.arange(3, self.total_time, float(self.settings['task_settings']['color_switch_interval']))
         self.dot_switch_color_times += (2*np.random.rand(len(self.dot_switch_color_times))-1)
         
         
@@ -253,16 +253,16 @@ class GRATESession(PylinkEyetrackerSession):
         
         print(f"Expected number of responses: {len(self.dot_switch_color_times)}")
         print(f"Total subject responses: {self.total_responses}")
-        print(f"Correct responses (within {self.settings['task_settings']['response interval']}s of dot color change): {self.correct_responses}")
+        print(f"Correct responses (within {self.settings['task_settings']['response_interval']}s of dot color change): {self.correct_responses}")
         np.save(opj(self.output_dir, self.output_str+'_simple_response_data.npy'), {"Expected number of responses":len(self.dot_switch_color_times),
         														                      "Total subject responses":self.total_responses,
-        														                      f"Correct responses (within {self.settings['task_settings']['response interval']}s of dot color change)":self.correct_responses})
+        														                      f"Correct responses (within {self.settings['task_settings']['response_interval']}s of dot color change)":self.correct_responses})
         
         #print('Percentage of correctly answered trials: %.2f%%'%(100*self.correct_responses/len(self.dot_switch_color_times)))
         
         
-        if self.settings['stim']['Screenshot']==True:
-            self.win.saveMovieFrames(opj(self.screen_dir, self.output_str+'_Screenshot.png'))
+        if self.settings['stim_settings']['screenshot']==True:
+            self.win.saveMovieFrames(opj(self.screen_dir, self.output_str+'_screenshot.png'))
             
         self.close()
 

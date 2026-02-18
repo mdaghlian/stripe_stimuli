@@ -48,20 +48,20 @@ mri:
     sound: False  # simulate scanner noise
 
 
-PRF stimulus settings:
-    Scanner sync: True                # set this to true to make bar move on input 't'
-    Screenshot: True
-    Squares in bar: 2
-    Bar pass steps: 20                # number of steps the bar takes to traverse the aperture
-    Blanks length: 10                  # length of interbar periods (-1 in orientation). like bar pass steps, in units of TRs or bar step length
-    Bar orientations: [-1, 225, 315, -1,  45, 135,  -1, -1]
-    Bar width in degrees: 1.25
-    Checkers motion speed: 3          # checkers motion speed. direction is randomly up/down at each bar step
-    Size fixation dot in degrees: 0.05 # dot changes color on average every two TRs (or bar steps)
+stim_settings:
+    scanner_sync: True                # set this to true to make bar move on input 't'
+    screenshot: True
+    squares_in_bar: 2
+    bar_pass_steps: 20                # number of steps the bar takes to traverse the aperture
+    blanks_length: 10                  # length of interbar periods (-1 in orientation). like bar pass steps, in units of TRs or bar step length
+    bar_orientations: [-1, 225, 315, -1,  45, 135,  -1, -1]
+    bar_width_in_degrees: 1.25
+    checkers_motion_speed: 3          # checkers motion speed. direction is randomly up/down at each bar step
+    size_fixation_dot_in_degrees: 0.05 # dot changes color on average every two TRs (or bar steps)
     fixation_method : cross    
     fix_cross_parameters:
         dot_radius: 0.05
         line_width: 5 # 5=default, amb02=80 (in pixels to match ncsf)
-Task settings: 
-    response interval: 0.8 # time in s you allow the participant to respond that still counts as correct response
-    color switch interval: 3.5 # interval in s between color dot switches, note: a random decimal between -1 and +1 is added to it in the code 
+task_settings: 
+    response_interval: 0.8 # time in s you allow the participant to respond that still counts as correct response
+    color_switch_interval: 3.5 # interval in s between color dot switches, note: a random decimal between -1 and +1 is added to it in the code 
