@@ -41,7 +41,7 @@ mri:
     trigger : 't'
 
 stim_settings:
-    scanner_sync: True                # set this to true to make bar move on input 't'
+    scanner_sync: False                # set this to true to make bar move on input 't'
     screenshot: True
     trial_length : 0.5
     n_wedges : 6
@@ -56,7 +56,7 @@ stim_settings:
     end_blanks : 5
     n_phases : 2
     size_fixation_dot_in_degrees: 0.05 # dot changes color on average every two TRs (or bar steps)
-    fixation_method : dot  
+    fixation_method : cross  
     fix_cross_parameters:
         dot_radius: 0.05
         line_width: 5 #0.025 # *101.6
