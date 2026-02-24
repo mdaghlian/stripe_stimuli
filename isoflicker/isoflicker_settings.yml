@@ -56,13 +56,12 @@ conditions:
       label: "grey"
       channel: "all"               # achromatic: R = G = B = value
       start:  0.0
-      step:   0.05
+      step:   0.02
       min:   -1.0
       max:    1.0
 
   red:
     fixed:
-      color: [ 0.0,  0.0,  0.0]   # mid-grey reference
       label: "grey"
     adjusted:
       color: [ 0.0, -1.0, -1.0]   # red at mid-luminance starting point
@@ -100,7 +99,7 @@ circle_edges: 128
 # -----------------------------------------------------------------------------
 # Trial repetitions (each ring is shown this many times)
 # -----------------------------------------------------------------------------
-repetitions: 1
+repetitions: 3
 
 # -----------------------------------------------------------------------------
 # Flicker timing
@@ -110,5 +109,5 @@ repetitions: 1
 #                      measure the actual rate first via win.getActualFrameRate().
 # -----------------------------------------------------------------------------
 flicker:
-  flicker_rate_hz:    15    # Hz — how fast the ring alternates between the two colours
+  flicker_rate_hz:    30    # Hz — how fast the ring alternates between the two colours
   monitor_refresh_hz: 60    # Hz — fallback only; actual rate measured at runtime
