@@ -1,0 +1,114 @@
+# =============================================================================
+# settings.yml — Flicker Photometry Task
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Display / viewing geometry
+# Used to build a PsychoPy Monitor so that degree ↔ pixel conversion is
+# accurate. Measure these values for your specific setup.
+# -----------------------------------------------------------------------------
+display:
+  # gamma : 2.2
+  screen_width_cm:      52.0    # physical width of the display in centimetres
+  screen_height_cm:     29.5    # physical height of the display in centimetres
+  viewing_distance_cm:  57.0    # eye-to-screen distance in centimetres
+                                # (57 cm ≈ 1 cm ≈ 1° of visual angle rule-of-thumb)
+
+# -----------------------------------------------------------------------------
+# Window
+# -----------------------------------------------------------------------------
+window:
+  size:     [1920, 1080]
+  fullscr:  True              # set true for real data collection
+  monitor:  "runtime_monitor"  # name used when registering via build_monitor()
+
+# -----------------------------------------------------------------------------
+# Background
+# -----------------------------------------------------------------------------
+background_color: [-1, -1, -1]   # black (PsychoPy rgb: −1 to +1 per channel)
+
+# -----------------------------------------------------------------------------
+# Conditions
+#
+# Each condition has a FIXED colour and an ADJUSTED colour.
+# The ring flickers between the two; the participant adjusts the 'adjusted'
+# colour until the flicker disappears (= isoluminance point).
+#
+# fixed    : colour that never changes during a trial
+# adjusted : colour the participant controls with ← →
+#   start      : initial scalar value on the −1 → +1 luminance scale
+#   step       : change per key-press
+#   min / max  : clamping limits
+#   channel    : which RGB channel(s) the scalar drives:
+#                  "all" → achromatic  (R = G = B = value)
+#                  "R"   → only the red   channel; G and B stay at their start values
+#                  "G"   → only the green channel; R and B stay at their start values
+#                  "B"   → only the blue  channel; R and G stay at their start values
+# -----------------------------------------------------------------------------
+conditions:
+
+  blue:
+    fixed:
+      color: [-1.0, -1.0,  1.0]   # pure blue
+      label: "blue"
+    adjusted:
+      color: [ 0.0,  0.0,  0.0]   # mid-grey starting point
+      label: "grey"
+      channel: "all"               # achromatic: R = G = B = value
+      start:  0.0
+      step:   0.05
+      min:   -1.0
+      max:    1.0
+
+  red:
+    fixed:
+      color: [ 0.0,  0.0,  0.0]   # mid-grey reference
+      label: "grey"
+    adjusted:
+      color: [ 0.0, -1.0, -1.0]   # red at mid-luminance starting point
+      label: "red"
+      channel: "R"                 # only the R channel is adjusted; G and B stay at −1
+      start:  0.0
+      step:   0.02
+      min:   -1.0
+      max:    1.0
+
+# -----------------------------------------------------------------------------
+# Ring parameters — defined in degrees of visual angle (eccentricity)
+#   inner_deg : inner edge eccentricity (deg)
+#   outer_deg : outer edge eccentricity (deg)
+#   label     : human-readable name used in cues and output CSV
+# -----------------------------------------------------------------------------
+ring_params:
+  - label:     foveal
+    inner_deg: 0.5
+    outer_deg: 2.0
+
+  - label:     parafoveal
+    inner_deg: 3.0
+    outer_deg: 5.0
+
+  - label:     peripheral
+    inner_deg: 7.0
+    outer_deg: 10.0
+
+# -----------------------------------------------------------------------------
+# Circle rendering quality
+# -----------------------------------------------------------------------------
+circle_edges: 128
+
+# -----------------------------------------------------------------------------
+# Trial repetitions (each ring is shown this many times)
+# -----------------------------------------------------------------------------
+repetitions: 1
+
+# -----------------------------------------------------------------------------
+# Flicker timing
+# flicker_rate_hz    : desired alternation frequency in Hz.
+# monitor_refresh_hz : fallback refresh rate used only if live measurement
+#                      from the window fails. The script always tries to
+#                      measure the actual rate first via win.getActualFrameRate().
+# -----------------------------------------------------------------------------
+flicker:
+  flicker_rate_hz:    15    # Hz — how fast the ring alternates between the two colours
+  monitor_refresh_hz: 60    # Hz — fallback only; actual rate measured at runtime
