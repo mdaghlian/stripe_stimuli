@@ -346,100 +346,120 @@ def save_results_yml(results, subject, session, condition_name):
         yaml.dump(dict2save, f)
     print(f"Saved \u2192 {filename}")
 
-def load_bluegrey_yml(subject, session):
-    filename = f"./data/flicker_{subject}_s{session}_blue.yml"
-    with open(filename, "r") as f:
-        return yaml.load(f, Loader=yaml.FullLoader)
-    
+import yaml
+import numpy as np
+from scipy.optimize import curve_fit
+
+def path(subject, session, condition, fitted=False):
+    return f"./data/flicker_{subject}_s{session}_{condition}{'_fitted' if fitted else ''}.yml"
+
+def ecc(row):
+    return (float(row["inner_deg"]) + float(row["outer_deg"])) / 2.0
+
+def log_func(x, a, b):
+    return a * np.log(x) + b
+
+def fit_params(x, y):
+    (a, b), _ = curve_fit(log_func, np.asarray(x, float), np.asarray(y, float))
+    return {"a": float(round(a, 4)), "b": float(round(b, 4))}
+
 def fit_bluegrey_yml(subject, session):
-    # Fit the blue data log function
-    data = load_bluegrey_yml(subject, session)
-    # Extract eccentricity and adjusted scalar values
-    results = data['results']
-    ecc_list = [(float(row["inner_deg"]) + float(row["outer_deg"])) / 2 for row in results]
-    ecc = list(set(ecc_list))  # unique eccentricity values
-    ecc.sort()  # ensure sorted by eccentricity
-    adj_scalar = [float(row["adjusted_scalar_0_1"]) for row in results]
+    # load blue
+    with open(path(subject, session, "blue"), "r") as f:
+        blue = yaml.load(f, Loader=yaml.FullLoader)
 
-    # Fit a logarithmic function to the data
-    def log_func(x, a, b):
-        return a * np.log(x) + b
-    popt, _ = curve_fit(log_func, ecc_list, adj_scalar)
-    # Make new yml with fitted values + predictions + original data
+    results = blue["results"]
+    ecc_list = [ecc(r) for r in results]
+    adj01 = [float(r["adjusted_scalar_0_1"]) for r in results]
+
+    # fit
+    pB = fit_params(ecc_list, adj01)
+
+    # per-row fitted (0..1 scale) + ecc-wise predictions (-1..+1 scale)
+    results_fitted = []
+    for r in results:
+        rr = dict(r)
+        rr["fitted_scalar_0_1"] = float(round(log_func(ecc(r), pB["a"], pB["b"]), 4))
+        results_fitted.append(rr)
+
+    ecc_unique = sorted(set(ecc_list))
     fitted_data = {}
-    for tecc in ecc:
-        fitted_scalar = log_func(tecc, *popt)
-        adj01 = float(round(fitted_scalar, 4))
-        # now convert back to −1 → +1 scale for use in the red task
-        adj = round(adj01 * 2 - 1, 4)
-        fitted_data[tecc] = adj
+    for e in ecc_unique:
+        fitted01 = float(round(log_func(e, pB["a"], pB["b"]), 4))
+        fitted_data[e] = round(fitted01 * 2 - 1, 4)  # 0..1 -> -1..+1
 
-    fitted_filename = f"./data/flicker_{subject}_s{session}_blue_fitted.yml"
-    dict2save = {
-        'subject': subject,
-        'session': session,
-        'condition': 'blue_fitted',
-        'fit_params': {
-            'a': float(round(popt[0], 4)),
-            'b': float(round(popt[1], 4)),
-        },
-        'fitted_data' : fitted_data,
+    # save (IMPORTANT: include 'results' so combined fit can read it)
+    out = {
+        "subject": subject,
+        "session": session,
+        "condition": "blue_fitted",
+        "fit_params": pB,
+        "results": results,
+        "results_fitted": results_fitted,
+        "ecc_unique": ecc_unique,
+        "fitted_data": fitted_data,
     }
-    with open(fitted_filename, "w") as f:
-        yaml.dump(dict2save, f)
-    print(f"Saved fitted data \u2192 {fitted_filename}")
-    # Return the ecc-wise fitted scalar values for use in the red task
-    # {row["ring_index"]: row["fitted_scalar_0_1"] for row in fitted_data}
-    return [[fitted_data[tecc], fitted_data[tecc], fitted_data[tecc]] for tecc in ecc]
-     
+    out_file = path(subject, session, "blue", fitted=True)
+    with open(out_file, "w") as f:
+        yaml.dump(out, f)
+    print(f"Saved fitted data → {out_file}")
+
+    # return triplets per ecc (for red task usage)
+    return [[fitted_data[e]] * 3 for e in ecc_unique]
+
 def fit_redgrey_yml(subject, session):
-    dict2save = {
-        'subject': subject,
-        'session': session,
-        'condition': 'COMBINED',
-        'fit_paramsGrey': [], 
-        'fit_paramsRed': [],
-        'eccList': [],
-    }
-    # Load the blue fitted data
-    with open(f"./data/flicker_{subject}_s{session}_blue_fitted.yml", "r") as f:
-        data_blue = yaml.load(f, Loader=yaml.FullLoader)
-    dict2save['fit_paramsBlue'] = data_blue['fit_params'].copy()
+    # load blue originals to define eccList (consistent reference)
+    with open(path(subject, session, "blue"), "r") as f:
+        blue = yaml.load(f, Loader=yaml.FullLoader)
+    results_blue = blue["results"]
+    eccList = [ecc(r) for r in results_blue]
 
-    # Extract eccentricity and adjusted scalar values for both conditions
-    results_blue = data_blue['results']
-    eccList = [(float(row["inner_deg"]) + float(row["outer_deg"])) / 2 for row in results_blue]
-    dict2save['eccList'] = eccList
+    # load blue fit params (fit if missing)
+    blue_fit_file = path(subject, session, "blue", fitted=True)
+    try:
+        with open(blue_fit_file, "r") as f:
+            blue_fit = yaml.load(f, Loader=yaml.FullLoader)
+        pB = blue_fit["fit_params"]
+    except FileNotFoundError:
+        fit_bluegrey_yml(subject, session)
+        with open(blue_fit_file, "r") as f:
+            blue_fit = yaml.load(f, Loader=yaml.FullLoader)
+        pB = blue_fit["fit_params"]
 
-    # Fit the red data log function
-    filename = f"./data/flicker_{subject}_s{session}_red.yml"
-    with open(filename, "r") as f:
-        data_red = yaml.load(f, Loader=yaml.FullLoader)
-    results_red = data_red['results']
-    adj_scalar_red = [float(row["adjusted_scalar_0_1"]) for row in results_red]
-    def log_func(x, a, b):
-        return a * np.log(x) + b
-    popt_red, _ = curve_fit(log_func, eccList, adj_scalar_red)
-    dict2save['fit_paramsRed'] = {
-        'a': float(round(popt_red[0], 4)),
-        'b': float(round(popt_red[1], 4)),
-    }
-    # Make new yml with fitted values + predictions + original data for red condition
+    # load + fit red against eccList
+    with open(path(subject, session, "red"), "r") as f:
+        red = yaml.load(f, Loader=yaml.FullLoader)
+    results_red = red["results"]
+    adj01_red = [float(r["adjusted_scalar_0_1"]) for r in results_red]
+    pR = fit_params(eccList, adj01_red)
+
+    # annotate per-row fitted scalars (0..1)
     fitted_data_red = []
-    for row in results_red:
-        ecc_value = (float(row["inner_deg"]) + float(row["outer_deg"])) / 2
-        fitted_scalar = log_func(ecc_value, *popt_red)
-        row["fitted_scalar_0_1"] = float(round(fitted_scalar, 4))
-        fitted_data_red.append(row)
+    for r in results_red:
+        rr = dict(r)
+        rr["fitted_scalar_0_1"] = float(round(log_func(ecc(r), pR["a"], pR["b"]), 4))
+        fitted_data_red.append(rr)
+
     fitted_data_blue = []
-    for row in results_blue:
-        ecc_value = (float(row["inner_deg"]) + float(row["outer_deg"])) / 2
-        fitted_scalar = log_func(ecc_value, *dict2save['fit_paramsBlue'].values())
-        row["fitted_scalar_0_1"] = float(round(fitted_scalar, 4))
-        fitted_data_blue.append(row)
-    fitted_filename_all = f"./data/flicker_{subject}_s{session}_COMBINED_fitted.yml"
-    dict2save['fitted_data_red'] = fitted_data_red
-    dict2save['fitted_data_blue'] = fitted_data_blue
-    with open(fitted_filename_all, "w") as f:
-        yaml.dump(dict2save, f)
-    print(f"Saved combined fitted data \u2192 {fitted_filename_all}")
+    for r in results_blue:
+        rr = dict(r)
+        rr["fitted_scalar_0_1"] = float(round(log_func(ecc(r), pB["a"], pB["b"]), 4))
+        fitted_data_blue.append(rr)
+
+    combined = {
+        "subject": subject,
+        "session": session,
+        "condition": "COMBINED",
+        "eccList": eccList,
+        "fit_paramsBlue": pB,
+        "fit_paramsRed": pR,
+        "fitted_data_blue": fitted_data_blue,
+        "fitted_data_red": fitted_data_red,
+    }
+
+    out_file = path(subject, session, "COMBINED", fitted=True)
+    with open(out_file, "w") as f:
+        yaml.dump(combined, f)
+    print(f"Saved combined fitted data → {out_file}")
+
+    return combined
