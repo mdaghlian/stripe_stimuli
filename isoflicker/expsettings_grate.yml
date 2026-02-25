@@ -1,0 +1,66 @@
+preferences:
+    general:
+        audioLib: SoundDevice
+        units: deg
+
+window:
+    size: [1470, 956] # [1920, 1080]
+    pos: [0, 0]
+    color: [0, 0, 0]
+    fullscr: True
+    winType: pyglet
+    waitBlanking: True
+    screen: 0
+
+monitor:
+    name: default
+    width: 69 #18 #69  # in cm
+    distance: 210 
+    gamma: 1.0 #2.1
+
+operating system: mac # specify the OS the code is run on as 'mac', 'linux', or 'windows'
+
+mouse:
+    visible: False
+
+eyetracker:
+    model: eyelink
+    address: '100.1.1.1'
+    dot_size: 0.1  # in deg
+    options: # Eyelink specific settings
+        active_eye: left  # [right]
+        calibration_type: HV5  # [H3, HV3, HV5, HV9], # Jurjen = HV5
+        sample_rate: 1000
+        calibration_area_proportion: 0.4 0.4
+        validation_area_proportion: 0.4 0.4                
+
+mri:
+    TR: 0.5  # seconds between volume acquisitions
+    topup_scan: True
+    topup_duration: 0 # topup scan duration in seconds (no 't's)
+    trigger : 't'
+
+stim_settings:
+    scanner_sync: False                # set this to true to make bar move on input 't'
+    screenshot: True
+    trial_length : 0.5
+    spatial_frequency : 0.1
+    speed_deg_per_sec : 4
+    radius_deg : 10
+    tex_nr_pix : 2048
+    start_blanks : 5
+    on_time : 15 # in TR(?) 
+    off_time : 15
+    trial_ori : [90, -90, -1, 45,-45, -1]
+    # trial_col : ['blue_red', 'black_grey', 'none' , 'bw_default', 'bw_default', 'none'] # 
+    trial_col : ['blue_red', 'black_grey', 'none' , 'bw_default', 'bw_default', 'none'] # 
+    end_blanks : 5
+    size_fixation_dot_in_degrees: 0.05 # dot changes color on average every two TRs (or bar steps)
+    fixation_method : dot  
+    fix_cross_parameters:
+        dot_radius: 0.05
+        line_width: 5 #0.025 # *101.6
+
+task_settings: 
+    response_interval: 0.8 # time in s you allow the participant to respond that still counts as correct response
+    color_switch_interval: 3.5 # interval in s between color dot switches, note: a random decimal between -1 and +1 is added to it in the code 

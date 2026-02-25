@@ -9,9 +9,8 @@
 # -----------------------------------------------------------------------------
 display:
   # gamma : 2.2
-  screen_width_cm:      52.0    # physical width of the display in centimetres
-  screen_height_cm:     29.5    # physical height of the display in centimetres
-  viewing_distance_cm:  57.0    # eye-to-screen distance in centimetres
+  screen_width_cm:      69.0    # physical width of the display in centimetres
+  viewing_distance_cm:  210.0    # eye-to-screen distance in centimetres
                                 # (57 cm ≈ 1 cm ≈ 1° of visual angle rule-of-thumb)
 
 # -----------------------------------------------------------------------------
@@ -80,16 +79,16 @@ conditions:
 # -----------------------------------------------------------------------------
 ring_params:
   - label:     foveal
-    inner_deg: 0.5
-    outer_deg: 2.0
+    inner_deg: 0.0
+    outer_deg: 1.0
 
   - label:     parafoveal
-    inner_deg: 3.0
-    outer_deg: 5.0
+    inner_deg: 2.0
+    outer_deg: 3.0
 
   - label:     peripheral
-    inner_deg: 7.0
-    outer_deg: 10.0
+    inner_deg: 4.0
+    outer_deg: 5.0
 
 # -----------------------------------------------------------------------------
 # Circle rendering quality

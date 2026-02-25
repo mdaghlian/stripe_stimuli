@@ -5,14 +5,14 @@ fs=filesep;
 
 % DIRECTORY
 warning('off');%suppress annoying warnings because of embedding psychtoolbox folders, Matlab incompatibilities and missing semicolons
-addpath(genpath('/Applications/Psychtoolbox/'));
-
+% addpath(genpath('/Applications/Psychtoolbox/'));
+addpath(genpath('/Users/marcusdaghlian/programs/experiments/Psychtoolbox/'));
 warning('on');
 % warning ('off','Octave:language-extension');
 % warning('off','Octave:missing-semicolon');
 % warning ('off','Octave:mixed-string-concat'); 
-dir_base='/Users/ronim/CVL Dropbox/Roni Maimon/7TStudy/MRIStimuli';
-
+% dir_base='/Users/ronim/CVL Dropbox/Roni Maimon/7TStudy/MRIStimuli';
+dir_base='/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/codeFor7TPilot';
 % CHECK INPUTS
 if ~exist('name_subj','var')  
     name_subj='TestSubj';
@@ -148,7 +148,7 @@ allowDone=0;
 % OPEN PSYCHTOOLBOX WINDOW
 try
     % configuration 
-    screenid=1;%choose the screen for display
+    screenid=0;%choose the screen for display
     BackupCluts(screenid);%backup current graphics card gammatable (so we can restore it at the end of the session)
     PsychImaging('PrepareConfiguration');%prepare setup of imaging pipeline for onscreen window
     PsychImaging('AddTask','AllViews','EnableCLUTMapping');%enable CLUT animation by CLUT mapping, using a 8bpc, 256 slot clut        
