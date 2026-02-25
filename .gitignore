@@ -1,6 +1,6 @@
-*/logs/*
+*logs/
 *pycache__/
-z_*/*
+*z_*/
 output/*
 /isoflicker/data/*
 *.DS_Store
