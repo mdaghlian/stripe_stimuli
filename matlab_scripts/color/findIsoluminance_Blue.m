@@ -1,18 +1,17 @@
 function findIsoluminance_Blue(name_subj,name_sess,name_oldsess) 
 
 close all;
+cfg_start;
 fs=filesep;
 
 % DIRECTORY
 warning('off');%suppress annoying warnings because of embedding psychtoolbox folders, Matlab incompatibilities and missing semicolons
-% addpath(genpath('/Applications/Psychtoolbox/'));
-addpath(genpath('/Users/marcusdaghlian/programs/experiments/Psychtoolbox/'));
+addpath(genpath(cfg.PTB_dir));
 warning('on');
 % warning ('off','Octave:language-extension');
 % warning('off','Octave:missing-semicolon');
 % warning ('off','Octave:mixed-string-concat'); 
-% dir_base='/Users/ronim/CVL Dropbox/Roni Maimon/7TStudy/MRIStimuli';
-dir_base='/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/codeFor7TPilot';
+dir_base=cfg.dir_base;
 % CHECK INPUTS
 if ~exist('name_subj','var')  
     name_subj='TestSubj';
@@ -26,7 +25,7 @@ end
 % For the first session (name_oldsess does not exist), start luminance values are set.
 % For all following sessions, the isoluminance values from the prior session are taken.
 if ~exist('name_oldsess','var') 
-    startPoint=[60 70 80];
+    startPoint=findIso_cfg.startPointBlue;
 else
     load([dir_base fs name_subj fs 'colour' fs name_oldsess fs 'stimuli/logfiles/bwFitData.mat']);
     startPoint=bwValues2Use;
@@ -34,10 +33,15 @@ else
 end
 
 % ADJUSTABLE PARAMETERS
-nReps=4; 
-JitterSize=10;
-width=1920;% screen size in px
-height=1080;
+screenid=cfg.screenid;%choose the screen for display
+width=cfg.width;% screen size in px
+height=cfg.height;
+
+nReps=findIso_cfg.nReps; 
+JitterSize=findIso_cfg.JitterSize;
+nCond1=findIso_cfg.nCond1;%eccentricity
+fixSize=findIso_cfg.fixSize;%size of fixation spot
+
 
 % INITIALISE KEYS
 KbName('UnifyKeyNames');
@@ -82,7 +86,6 @@ pathfile=[dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli' fs 'logfil
 
 % EXPERIMENTAL PARADIGM
 expPar=[];
-nCond1=3;%eccentricity
 trialCount=zeros(1,nCond1);
 startPointMem=zeros(1,nCond1);
 
@@ -142,13 +145,12 @@ KeyIsDown=0;
 keyTime=tic;
 trial=0;
 escapeFlag=0;
-fixSize=2;%size of fixation spot
 allowDone=0;
 
 % OPEN PSYCHTOOLBOX WINDOW
 try
     % configuration 
-    screenid=0;%choose the screen for display
+    
     BackupCluts(screenid);%backup current graphics card gammatable (so we can restore it at the end of the session)
     PsychImaging('PrepareConfiguration');%prepare setup of imaging pipeline for onscreen window
     PsychImaging('AddTask','AllViews','EnableCLUTMapping');%enable CLUT animation by CLUT mapping, using a 8bpc, 256 slot clut        

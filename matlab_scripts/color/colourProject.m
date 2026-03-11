@@ -1,8 +1,10 @@
 function colourProject(name_subj,name_sess,name_run)
 
 close all;
+cfg_start;
 fs=filesep;
 
+% Set default values for subject, session, and run if not provided
 if ~exist('name_subj','var')  
     name_subj='TestSubj';
 end
@@ -16,28 +18,31 @@ if ~exist('name_run','var')
 end
 
 % DIRECTORY
-warning('off');%suppress annoying warnings because of embedding psychtoolbox folders, Matlab incompatibilities and missing semicolons
-addpath(genpath('/Applications/Psychtoolbox/'));
+% Suppress warnings from PsychToolbox path embedding and Matlab incompatibilities
+warning('off');
+addpath(genpath(cfg.PTB_dir));
 warning('on');
-% warning ('off','Octave:language-extension');
-% warning('off','Octave:missing-semicolon');
-% warning ('off','Octave:mixed-string-concat'); 
-dir_base='/Users/ronim/CVL Dropbox/Roni Maimon/7TStudy/MRIStimuli';
+
+dir_base=cfg.dir_base;
 
 % ADJUSTABLE PARAMETERS
-width=1920;% screen size in px
-height=1080;
-nBlocks=8;%has to be an integral multiple of nConditions
-nConditions=8;
-nRuns=10;
-BlockTime=30;
-DelayTime=15;
-save_screen=0; % set to 1 for saving screenshots
+screenid=cfg.screenid;   
+width=cfg.width;        % screen width in pixels
+height=cfg.height;      % screen height in pixels
+nBlocks=stim_cfg.nBlocks;           % total number of blocks (must be an integral multiple of nConditions)
+nConditions=stim_cfg.nConditions;   % number of experimental conditions
+nRuns=stim_cfg.nRuns;
+BlockTime=stim_cfg.BlockTime;
+DelayTime=stim_cfg.DelayTime;
+save_screen=stim_cfg.save_screen;   % set to 1 to save screenshots
+
+nSteps=stim_cfg.nSteps;
+orientationList=stim_cfg.thetaList;
+colourCondLabels=stim_cfg.colourCondLabels;
+fixSize=stim_cfg.fixSize;
 
 % INITIALISE KEYS
 escapeKey=KbName('ESCAPE');
-%DetectKey=KbName('SPACE');
-%TriggerSign=KbName('RIGHT');
 DetectKey=KbName('1!');
 TriggerSign=KbName('5%');
 
@@ -46,6 +51,7 @@ TriggerSign=KbName('5%');
 %==========================================================================
 
 % LOGFILE
+% Build the path for this subject/session/run and create directories if needed
 pathfile=[dir_base fs name_subj fs 'colour' fs name_sess];
 if isdir([pathfile fs 'Run_' sprintf('%d',name_run)])==0
     status=mkdir([pathfile fs 'Run_' sprintf('%d',name_run)]);
@@ -54,24 +60,28 @@ if isdir([pathfile fs 'Run_' sprintf('%d',name_run)])==0
     else
         mkdir([pathfile fs 'Run_' sprintf('%d',name_run) fs 'logfiles']);    
     end
-% else
-%     error('Run has already been carried out!');
 end
+
+% Define logfile paths for the current and previous run
 FileName=[pathfile fs 'Run_' sprintf('%d',name_run) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',name_run) '_colour'];
 FileName_old=[pathfile fs 'Run_' sprintf('%d',name_run-1) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',name_run-1) '_colour'];
 
 % EXPERIMENTAL PARADIGM
 if name_run == 1
+    % --- First run: generate a fresh pseudorandom block sequence ---
     redo=1;
     while redo
         redo=0;
+
+        % Build a sequence containing each condition index once per repetition cycle,
+        % then shuffle the full list randomly
         temp=[];
         for i=1:nBlocks/nConditions
             temp=[temp 1:nConditions];
-            disp('1');
         end
         temp=temp(randperm(length(temp)));
 
+        % Reject the sequence if any two consecutive blocks are the same condition
         for i=1:length(temp)-1
             if temp(i)==temp(i+1)
                redo=1;
@@ -80,6 +90,9 @@ if name_run == 1
             end
         end
 
+        % Reject the sequence if three consecutive blocks all belong to the same
+        % half of the conditions (i.e. either all colour or all black-and-white),
+        % to prevent long runs of one stimulus type
         for i=1:length(temp)-2    
             if (temp(i)<=nConditions/2 && temp(i+1)<=nConditions/2 && temp(i+2)<=nConditions/2)
                 redo=1;
@@ -92,27 +105,35 @@ if name_run == 1
             end
         end
     end
+
+    % Scale condition indices (multiply by 2 to match the full block ID scheme)
     Sequence=2*temp;
     
-    % set pseudorandomisation: color=1 and bw=0
+    % Record whether each block is colour (1) or black-and-white (0),
+    % based on whether the condition index is in the upper or lower half
     pseudorandomisation = temp;
-    pseudorandomisation(pseudorandomisation > nBlocks/2) = 10;
-    pseudorandomisation(pseudorandomisation ~= 10) = 0;
-    pseudorandomisation(pseudorandomisation ~= 0) = 1;
+    pseudorandomisation(pseudorandomisation > nBlocks/2) = 10;  % mark colour blocks
+    pseudorandomisation(pseudorandomisation ~= 10) = 0;          % zero out non-colour
+    pseudorandomisation(pseudorandomisation ~= 0) = 1;           % set colour blocks to 1
+
 else
-    % load pseudorandomisation from last run
+    % --- Subsequent runs: load the colour/BW pattern from the previous run
+    %     and generate a new sequence that preserves the same pattern ---
     load([FileName_old '.mat']);
     clear FixationData LogData
     
     redo=1;
     while redo
         redo=0;
+
+        % Build and shuffle a new candidate sequence, as above
         temp=[];
         for i=1:nBlocks/nConditions
             temp=[temp 1:nConditions];
         end
         temp=temp(randperm(length(temp)));
 
+        % Reject if any two consecutive blocks share the same condition
         for i=1:length(temp)-1
             if temp(i)==temp(i+1)
                redo=1;
@@ -120,6 +141,7 @@ else
             end
         end
 
+        % Reject if three consecutive blocks are all from the same stimulus half
         for i=1:length(temp)-2    
             if (temp(i)<=nConditions/2 && temp(i+1)<=nConditions/2 && temp(i+2)<=nConditions/2)
                 redo=1;
@@ -130,12 +152,14 @@ else
             end
         end
         
-        % check pseudorandomisation: color=1, bw=0
+        % Convert candidate sequence to colour/BW binary pattern
         temp_check = temp;
         temp_check(temp_check > nBlocks/2) = 10;
         temp_check(temp_check ~= 10) = 0;
         temp_check(temp_check ~= 0) = 1;
 
+        % Reject if the colour/BW pattern differs from the previous run's pattern,
+        % ensuring consistent counterbalancing across runs
         if sum(abs(temp_check-pseudorandomisation)) > 0
             redo=1;
         else
@@ -145,21 +169,36 @@ else
     end
     Sequence=2*temp;
 end
-
+disp('sequence')
+disp(Sequence)
+disp('heloo')
+% Expand the Sequence into a full Block list by interleaving paired block IDs.
+% Each condition entry N becomes two consecutive blocks: N (even) and N-1 (odd),
+% representing the two halves of each condition block. Delay periods (0) flank each pair.
 Block=0;
 for i=1:length(Sequence)
     Block=[Block Sequence(i) Sequence(i)-1];
 end
 Block=[Block 0];
-
+disp(Block)
+blurs
+% Build frame-by-frame sequences for block identity (BlockSeq) and direction (BlockSeqDir).
+% Delay periods are filled with zeros. Active blocks are subdivided into thirds,
+% with direction alternating sign each third — starting positive for odd block IDs
+% and negative for even block IDs.
 BlockSeq=[]; 
 BlockSeqDir=[];
 for i=1:length(Block)
     if Block(i)==0
+        % Delay period: fill with zeros for the full delay duration
         BlockSeq=[BlockSeq zeros(1,DelayTime)];
         BlockSeqDir=[BlockSeqDir zeros(1,DelayTime)];
     else
+        % Active block: fill BlockSeq with the block ID for its full duration
         BlockSeq=[BlockSeq ones(1,BlockTime/2)*Block(i)];
+
+        % Alternate direction in three equal thirds of the block.
+        % Even block IDs start with a positive direction; odd block IDs start negative.
         if mod(Block(i),2) == 0
             BlockSeqDir=[BlockSeqDir ones(1,BlockTime/6)*Block(i) -ones(1,BlockTime/6)*Block(i) ones(1,BlockTime/6)*Block(i)];
         else
@@ -168,11 +207,10 @@ for i=1:length(Block)
     end
 end
 
+disp(BlockSeqDir)
+disp(BlockSeq)
+blurp
 % FIXED PARAMETERS
-nSteps=30;
-orientationList=[0 45 90 135];
-colourCondLabels={'bw','colour'};
-fixSize=2;
 X1=width/2-fixSize;
 X2=width/2+fixSize;
 Y1=height/2-fixSize;
@@ -189,7 +227,7 @@ Image=uint8(128*ones(height,width));%grey background
 % OPEN PSYCHTOOLBOX WINDOW
 try
     % configuration
-    screenid=1;    
+     
     oldVisualDebugLevel=Screen('Preference','VisualDebugLevel',3);%control visual alerts
     oldSuppressAllWarnings=Screen('Preference','SuppressAllWarnings',1);%suppresses the printout of warnings
     wptr=Screen('OpenWindow',screenid);
@@ -370,13 +408,13 @@ try
     
     % end screen
     Screen('FillRect',wptr,[0 0 0],[0 0 width height]);
-    if name_run~=nRuns
-        Screen('TextSize',wptr,70);
-        DrawFormattedText(wptr,'Please close your eyes','center','center',255);    
-    else
-        Screen('TextSize',wptr,70);
-        DrawFormattedText(wptr,'Thankyou for participating!','center','center',255);
-    end
+    % if name_run~=nRuns
+    %     Screen('TextSize',wptr,70);
+    %     DrawFormattedText(wptr,'Please close your eyes','center','center',255);    
+    % else
+    %     Screen('TextSize',wptr,70);
+    %     DrawFormattedText(wptr,'Thankyou for participating!','center','center',255);
+    % end
     Screen('Flip',wptr);
     exitFlag=0;
     while ~exitFlag

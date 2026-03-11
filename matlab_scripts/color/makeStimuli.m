@@ -1,6 +1,8 @@
 function makeStimuli(name_subj,name_sess)
 
 close all
+% Load computer config
+cfg_start; 
 fs=filesep;
 
 if ~exist('name_subj','var')  
@@ -15,7 +17,7 @@ end
 % warning ('off','Octave:language-extension');%suppress annoying warnings because of Matlab incompatibilities and missing semicolons
 % warning('off','Octave:missing-semicolon');
 % warning ('off','Octave:mixed-string-concat'); 
-dir_base='/Users/ronim/CVL Dropbox/Roni Maimon/7TStudy/MRIStimuli';
+dir_base=cfg.dir_base;
 pathfile=[dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli'];
 
 % GET VALUES FROM BLUE ISOLUMINANCE
@@ -43,11 +45,13 @@ redParams
 % PARAMETERS
 % to reduce the calculation for generating and loading all image files,
 % we halved the size of the images (1920/2x1080/2)
-width=960;
-height=540;
-nPhaseSteps=30;
+width=cfg.width/2;
+height=cfg.height/2;
+nPhaseSteps=stim_cfg.nPhaseSteps;
+lambda=stim_cfg.lambda;%in px
+thetaList=stim_cfg.thetaList;
+
 phaseStep=1/nPhaseSteps;
-lambda=107;%in px
 spatialFreq=1/lambda;
 X=1:width;%X is a vector from 1 to width
 Y=1:height;  
@@ -66,7 +70,6 @@ fxn2(fxn2>255)=255;
 fxn2(fxn2<0)=0;
 
 % GRATING
-thetaList=[0 45 90 135];
 counter=1;
 for t=1:length(thetaList)
     theta=thetaList(t);%grating orientation
