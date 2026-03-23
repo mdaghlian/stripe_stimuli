@@ -18,10 +18,10 @@ def main():
     args = parse_args()
 
     cfg  = load_settings(args.settings)
-    results = fit_bluegrey_yml(args.sub, args.ses)
-    print("Fitted parameters for Red IsoLum task:", results)
-    print(len(results), "rings with fitted parameters")
-    
+    fitted_fixed_colors = fit_bluegrey_yml(args.sub, args.ses)
+    print("Fixed Grey at each eccentricity, set using the blue:\n", fitted_fixed_colors)
+    print(len(fitted_fixed_colors), "rings with fitted parameters")
+
     mon  = build_monitor(cfg)
     win  = build_window(cfg, mon)
 
@@ -29,7 +29,7 @@ def main():
         win,
         cfg,
         condition_name='red',
-        fitted_fixed_colors=results,  # Pass the fitted scalars from the blue condition to configure the fixed colour in the red condition
+        fitted_fixed_colors=fitted_fixed_colors,  # Pass the fitted scalars from the blue condition to configure the fixed colour in the red condition
      )
 
     save_results_yml(results, args.sub, args.ses, 'red')

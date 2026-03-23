@@ -51,7 +51,7 @@ class GRATETrial(Trial):
     def draw(self, *args, **kwargs):
         # draw bar stimulus and circular (raised cosine) aperture from Session class
         self.session.draw_stimulus() 
-        self.session.mask_stim.draw()
+        # self.session.mask_stim.draw()
         
         
         

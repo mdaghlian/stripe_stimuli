@@ -20,6 +20,7 @@ Structure:
 # 1. Imports
 # =============================================================================
 import csv
+import os
 import yaml
 import random
 import argparse
@@ -87,7 +88,6 @@ def build_monitor(cfg):
         distance=disp["viewing_distance_cm"],
     )
     mon.setSizePix(cfg["window"]["size"])
-    # mon.setGamma(cfg["display"].get("gamma", 1.0))  # default to 1.0 if not specified
     mon.save()   # saves temporarily; overwritten on each run
     return mon
 
@@ -112,11 +112,6 @@ def build_window(cfg, mon):
 
 # =============================================================================
 # 8. Ring stimulus maker
-# Simulates an annulus with two filled circles drawn back-to-front:
-#   1. outer disc  – radius = outer_deg
-#   2. inner disc  – radius = inner_deg, filled with background colour
-#                    to punch a hole in the outer disc
-# inner_deg / outer_deg are degrees of visual angle (eccentricity).
 # =============================================================================
 def make_ring(win, inner_deg, outer_deg, edges, bg):
     outer = visual.Circle(
@@ -162,21 +157,21 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
     FLICKER_RATE_HZ      = cfg["flicker"]["flicker_rate_hz"]
     FALLBACK_REFRESH_HZ  = cfg["flicker"]["monitor_refresh_hz"]
 
-    # -- Resolve which colour is fixed and which is adjusted --
-    # Which colour is fixed & which is adjusted
-    fixed_cfg = cfg['conditions'][condition_name]['fixed']
+    fixed_cfg    = cfg['conditions'][condition_name]['fixed']
     adjusted_cfg = cfg['conditions'][condition_name]['adjusted']
+
     if condition_name == 'blue':
         print("Condition: BLUE fixed, GREY adjusted")
         print("Setting same BLUE for all rings")
-        FIXED_COLOR    = [fixed_cfg["color"]]*len(RING_PARAMS)  # replicate the fixed colour for all rings
+        FIXED_COLOR = [fixed_cfg["color"]] * len(RING_PARAMS)
     elif condition_name == 'red':
-        # Use the fitted values from the blue condition to set the fixed colour for each ring in the red condition
         print("Condition: RED adjusted, GREY fixed")
-        FIXED_COLOR = fitted_fixed_colors  # list of fitted scalars for each ring from the blue condition
-    FIXED_LABEL    = fixed_cfg["label"]
+        # fitted_fixed_colors is a list of per-ring RGB triplets in [-1,+1]
+        # derived from the blue condition fit
+        FIXED_COLOR = fitted_fixed_colors
 
-    ADJ_BASE_COLOR = adjusted_cfg["color"]   # base RGB; one channel will be driven
+    FIXED_LABEL    = fixed_cfg["label"]
+    ADJ_BASE_COLOR = adjusted_cfg["color"]
     ADJ_LABEL      = adjusted_cfg["label"]
     ADJ_CHANNEL    = adjusted_cfg["channel"]
     ADJ_START      = adjusted_cfg["start"]
@@ -184,7 +179,7 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
     ADJ_MIN        = adjusted_cfg["min"]
     ADJ_MAX        = adjusted_cfg["max"]
 
-    # -- Measure actual monitor refresh rate; fall back to YAML value --
+    # -- Measure actual monitor refresh rate --
     try:
         measured_hz = win.getActualFrameRate(nIdentical=10, nMaxFrames=100, threshold=1)
         if measured_hz is None or not (20 < measured_hz < 500):
@@ -195,17 +190,14 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
         MONITOR_REFRESH_HZ = FALLBACK_REFRESH_HZ
         print(f"Refresh rate measurement failed ({e}). Using fallback: {MONITOR_REFRESH_HZ} Hz")
 
-    # Each full cycle = 2 phases (fixed colour + adjusted colour), so:
     UPDATE_FLICKER = max(1, round(MONITOR_REFRESH_HZ / (2 * FLICKER_RATE_HZ)))
     print(
         f"Flicker: {FLICKER_RATE_HZ} Hz target → {UPDATE_FLICKER} frames/phase "
         f"(actual: {MONITOR_REFRESH_HZ / UPDATE_FLICKER / 2:.2f} Hz)"
     )
 
-    # -- Build stimuli --
     rings, fixation = build_stimuli(win, cfg)
 
-    # -- Instructions --
     instructions = visual.TextStim(
         win,
         text=(
@@ -225,7 +217,6 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
         win.close()
         core.quit()
 
-    # -- Trials --
     trial_list = list(range(len(RING_PARAMS))) * REPETITIONS
     random.shuffle(trial_list)
 
@@ -239,9 +230,8 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
         label      = ring_conf["label"]
         outer_disc, inner_disc = rings[ring_idx]
 
-        adj_value = ADJ_START   # scalar on −1 → +1 scale
+        adj_value = ADJ_START
 
-        # Pre-trial cue
         cue = visual.TextStim(
             win,
             text=(
@@ -256,9 +246,8 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
         core.wait(2)
         event.clearEvents()
 
-        # -- Flicker loop --
         frame_count  = 0
-        phase_count  = 0   # increments every UPDATE_FLICKER frames
+        phase_count  = 0
         running      = True
 
         while running:
@@ -267,15 +256,12 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
             if frame_count % UPDATE_FLICKER == 0:
                 phase_count += 1
                 if phase_count % 2 == 0:
-                    # Phase A: show the fixed colour
                     outer_disc.fillColor = FIXED_COLOR[ring_idx]
                 else:
-                    # Phase B: show the current adjusted colour
                     outer_disc.fillColor = apply_adjustment(
                         adj_value, ADJ_BASE_COLOR, ADJ_CHANNEL
                     )
 
-            # Draw all rings back-to-front; non-target rings stay as background
             for i in reversed(range(len(rings))):
                 o, inn = rings[i]
                 if i != ring_idx:
@@ -298,14 +284,9 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
                 elif key == "space":
                     running = False
 
-        # Compute final adjusted colour for logging
         final_color = apply_adjustment(adj_value, ADJ_BASE_COLOR, ADJ_CHANNEL)
 
         results.append({
-            # "participant":          participant_id,
-            # "session":              session_id,
-            # "condition":            condition_name,
-            # "adjusted_color":       ADJ_LABEL,
             "trial_number":         trial_num + 1,
             "fixed_color":          FIXED_COLOR[ring_idx],
             "ring_index":           ring_idx + 1,
@@ -313,6 +294,7 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
             "inner_deg":            inner_deg,
             "outer_deg":            outer_deg,
             "adjusted_scalar":      round(adj_value, 4),
+            # 0..1 scale: PsychoPy's [-1,+1] → [0,1] for saving/fitting
             "adjusted_scalar_0_1":  round((adj_value + 1) / 2, 4),
             "final_color_R":        round(final_color[0], 4),
             "final_color_G":        round(final_color[1], 4),
@@ -323,19 +305,12 @@ def run_task(win, cfg, condition_name, fitted_fixed_colors=None):
 
 
 # =============================================================================
-# 10. Save CSV
+# 10. Save
 # =============================================================================
-def save_results(results, subject, session, condition_name):
-    filename = f"./data/flicker_{subject}_s{session}_{condition_name}.csv"
-    fieldnames = list(results[0].keys())
-    with open(filename, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames)
-        writer.writeheader()
-        writer.writerows(results)
-    print(f"Saved \u2192 {filename}")
-
 def save_results_yml(results, subject, session, condition_name):
     filename = f"./data/flicker_{subject}_s{session}_{condition_name}.yml"
+    if not os.path.exists("./data"):
+        os.makedirs("./data")
     dict2save = {
         'subject': subject,
         'session': session,
@@ -346,94 +321,120 @@ def save_results_yml(results, subject, session, condition_name):
         yaml.dump(dict2save, f)
     print(f"Saved \u2192 {filename}")
 
-import yaml
-import numpy as np
-from scipy.optimize import curve_fit
+
+# =============================================================================
+# 11. Curve fitting helpers
+# =============================================================================
 
 def path(subject, session, condition, fitted=False):
     return f"./data/flicker_{subject}_s{session}_{condition}{'_fitted' if fitted else ''}.yml"
 
+
 def ecc(row):
+    """Mean eccentricity of a ring in degrees."""
     return (float(row["inner_deg"]) + float(row["outer_deg"])) / 2.0
 
+
 def log_func(x, a, b):
-    return a * np.log(x) + b
+    """Logarithmic fit function: a * log(x) + b."""
+    return a * np.log(np.asarray(x, dtype=float)) + b
+
 
 def fit_params(x, y):
     (a, b), _ = curve_fit(log_func, np.asarray(x, float), np.asarray(y, float))
     return {"a": float(round(a, 4)), "b": float(round(b, 4))}
 
+
 def fit_bluegrey_yml(subject, session):
-    # load blue
+    """
+    Fit a log curve to blue-condition flicker photometry results.
+
+    The adjusted_scalar_0_1 values are grey levels in [0,1] (mapped from
+    PsychoPy's [-1,+1]) that appeared isoluminant to max blue at each
+    eccentricity.
+
+    Returns a list of per-ring RGB triplets (in PsychoPy [-1,+1] space)
+    for use as FIXED_COLOR in the red condition.
+    """
     with open(path(subject, session, "blue"), "r") as f:
         blue = yaml.load(f, Loader=yaml.FullLoader)
 
-    results = blue["results"]
+    results  = blue["results"]
     ecc_list = [ecc(r) for r in results]
-    adj01 = [float(r["adjusted_scalar_0_1"]) for r in results]
+    adj01    = [float(r["adjusted_scalar_0_1"]) for r in results]
 
-    # fit
     pB = fit_params(ecc_list, adj01)
 
-    # per-row fitted (0..1 scale) + ecc-wise predictions (-1..+1 scale)
+    # Annotate each row with its fitted value
     results_fitted = []
     for r in results:
         rr = dict(r)
         rr["fitted_scalar_0_1"] = float(round(log_func(ecc(r), pB["a"], pB["b"]), 4))
         results_fitted.append(rr)
 
-    ecc_unique = sorted(set(ecc_list))
-    fitted_data = {}
+    # Per unique eccentricity: fitted value in [0,1] and in [-1,+1]
+    ecc_unique  = sorted(set(ecc_list))
+    fitted_data = {}   # ecc → scalar in [-1,+1] (PsychoPy space)
     for e in ecc_unique:
-        fitted01 = float(round(log_func(e, pB["a"], pB["b"]), 4))
-        fitted_data[e] = round(fitted01 * 2 - 1, 4)  # 0..1 -> -1..+1
+        fitted01        = float(round(log_func(e, pB["a"], pB["b"]), 4))
+        fitted_data[e]  = round(fitted01 * 2 - 1, 4)   # [0,1] → [-1,+1]
 
-    # save (IMPORTANT: include 'results' so combined fit can read it)
     out = {
-        "subject": subject,
-        "session": session,
-        "condition": "blue_fitted",
-        "fit_params": pB,
-        "results": results,
-        "results_fitted": results_fitted,
-        "ecc_unique": ecc_unique,
-        "fitted_data": fitted_data,
+        "subject":          subject,
+        "session":          session,
+        "condition":        "blue_fitted",
+        "fit_params_0_1":   pB,
+        "results":          results,
+        "results_fitted":   results_fitted,
+        "ecc_unique":       ecc_unique,
+        "fitted_data":      fitted_data,
     }
     out_file = path(subject, session, "blue", fitted=True)
     with open(out_file, "w") as f:
         yaml.dump(out, f)
     print(f"Saved fitted data → {out_file}")
 
-    # return triplets per ecc (for red task usage)
-    return [[fitted_data[e]] * 3 for e in ecc_unique]
+    # Return per-ring RGB triplets in [-1,+1] for the red condition
+    # Each ring uses its mean eccentricity to look up the fitted grey level
+    ring_fitted_colors = []
+    for r in results:
+        e        = ecc(r)
+        fitted01 = float(log_func(e, pB["a"], pB["b"]))
+        fitted11 = fitted01 * 2 - 1          # [0,1] → [-1,+1]
+        fitted11 = float(np.clip(fitted11, -1.0, 1.0))
+        ring_fitted_colors.append([fitted11, fitted11, fitted11])
+
+    return ring_fitted_colors
+
 
 def fit_redgrey_yml(subject, session):
-    # load blue originals to define eccList (consistent reference)
+    """
+    Fit a log curve to red-condition flicker photometry results and save
+    a combined file containing both blue and red fit parameters.
+    """
+    # Load blue raw results for consistent eccentricity reference
     with open(path(subject, session, "blue"), "r") as f:
         blue = yaml.load(f, Loader=yaml.FullLoader)
     results_blue = blue["results"]
-    eccList = [ecc(r) for r in results_blue]
+    ecc_list     = [ecc(r) for r in results_blue]
 
-    # load blue fit params (fit if missing)
+    # Load blue fit (run it first if the fitted file doesn't exist yet)
     blue_fit_file = path(subject, session, "blue", fitted=True)
-    try:
-        with open(blue_fit_file, "r") as f:
-            blue_fit = yaml.load(f, Loader=yaml.FullLoader)
-        pB = blue_fit["fit_params"]
-    except FileNotFoundError:
+    if not os.path.exists(blue_fit_file):
         fit_bluegrey_yml(subject, session)
-        with open(blue_fit_file, "r") as f:
-            blue_fit = yaml.load(f, Loader=yaml.FullLoader)
-        pB = blue_fit["fit_params"]
+    with open(blue_fit_file, "r") as f:
+        blue_fit = yaml.load(f, Loader=yaml.FullLoader)
+    pB = blue_fit["fit_params_0_1"]
 
-    # load + fit red against eccList
+    # Load and fit red results
     with open(path(subject, session, "red"), "r") as f:
         red = yaml.load(f, Loader=yaml.FullLoader)
     results_red = red["results"]
-    adj01_red = [float(r["adjusted_scalar_0_1"]) for r in results_red]
-    pR = fit_params(eccList, adj01_red)
+    ecc_list_red = [ecc(r) for r in results_red]
+    adj01_red    = [float(r["adjusted_scalar_0_1"]) for r in results_red]
+    pR           = fit_params(ecc_list_red, adj01_red)
 
-    # annotate per-row fitted scalars (0..1)
+    # Annotate rows with fitted scalars
     fitted_data_red = []
     for r in results_red:
         rr = dict(r)
@@ -447,14 +448,14 @@ def fit_redgrey_yml(subject, session):
         fitted_data_blue.append(rr)
 
     combined = {
-        "subject": subject,
-        "session": session,
-        "condition": "COMBINED",
-        "eccList": eccList,
-        "fit_paramsBlue": pB,
-        "fit_paramsRed": pR,
-        "fitted_data_blue": fitted_data_blue,
-        "fitted_data_red": fitted_data_red,
+        "subject":              subject,
+        "session":              session,
+        "condition":            "COMBINED",
+        "eccList":              ecc_list,
+        "fit_paramsBlue_0_1":   pB,
+        "fit_paramsRed_0_1":    pR,
+        "fitted_data_blue":     fitted_data_blue,
+        "fitted_data_red":      fitted_data_red,
     }
 
     out_file = path(subject, session, "COMBINED", fitted=True)
@@ -463,3 +464,10 @@ def fit_redgrey_yml(subject, session):
     print(f"Saved combined fitted data → {out_file}")
 
     return combined
+
+
+def screen_params(distance_cm, screen_cm, screen_px):
+    """Returns (px_per_deg, screen_deg) for a given viewing geometry."""
+    screen_deg  = 2 * np.degrees(np.arctan(screen_cm / (2 * distance_cm)))
+    px_per_deg  = screen_px / screen_deg
+    return px_per_deg, screen_deg

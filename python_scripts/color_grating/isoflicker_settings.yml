@@ -17,7 +17,7 @@ display:
 # Window
 # -----------------------------------------------------------------------------
 window:
-  size:     [1920, 1080]
+  size:     [1470, 956] #[1920, 1080]
   fullscr:  True              # set true for real data collection
   monitor:  "runtime_monitor"  # name used when registering via build_monitor()
 
