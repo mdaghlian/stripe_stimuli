@@ -1,4 +1,4 @@
-% Computer Configuration
+% Move magic numbers & settings to one file
 cfg = struct();
 
 % Paths 
@@ -8,16 +8,28 @@ cfg.dir_base = '/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab
 % Screen settings
 cfg.width = 1470; % 1920;
 cfg.height = 956; %1080;
-cfg.screenid = 0; % which screen
+cfg.screenid = 0; % screenid
+cfg.image_frac = 0.5; % For generating images downsample for speed / memory
+% 
+cfg.distance_cm = 110;
+cfg.height_cm   = 69;
+px_per_cm = cfg.height / cfg.height_cm;
+cm_per_deg = 2 * cfg.distance_cm * tan(deg2rad(0.5));
+cfg.px_per_deg = px_per_cm * cm_per_deg;
+
+
 
 % findIso_cfg settings
 findIso_cfg = struct();
 findIso_cfg.nReps = 1;
 findIso_cfg.JitterSize = 10;
 findIso_cfg.nCond1 = 3; % eccentricity bands
-findIso_cfg.fixSize = 2; % fixation dot size
+findIso_cfg.fixSize = 2; % fixation dot size (pixels)
+% Per ecc band; what is the starting *luminance* of the channels being adjusted
+% In blue -> applies to grey; in red -> applies to red
 findIso_cfg.startPointBlue = [60 70 80];
 findIso_cfg.startPointRed = [180 200 220];
+
 
 % settings
 stim_cfg = struct();

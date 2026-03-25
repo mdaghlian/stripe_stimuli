@@ -45,8 +45,8 @@ redParams
 % PARAMETERS
 % to reduce the calculation for generating and loading all image files,
 % we halved the size of the images (1920/2x1080/2)
-width=cfg.width/2;
-height=cfg.height/2;
+width=cfg.width * cfg.image_frac;
+height=cfg.height * cfg.image_frac;
 nPhaseSteps=stim_cfg.nPhaseSteps;
 lambda=stim_cfg.lambda;%in px
 thetaList=stim_cfg.thetaList;
