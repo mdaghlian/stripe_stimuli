@@ -230,9 +230,9 @@ class DriftingGratings:
                     self._ecc_stims[(col, ori)] = visual.ImageStim(
                         win=session.win,
                         image=blank,
-                        mask='circle',
-                        units='deg',
-                        size=radius_deg * 2,
+                        # mask='circle',
+                        # units='deg',
+                        # size=radius_deg * 2,
                     )
 
     # ── Internal: texture computation ─────────────────────────────────────────
@@ -288,18 +288,19 @@ class DriftingGratings:
             stim = self._bw_stims[orientation]
             stim.phase = phase_cycles % 1.0
             stim.draw()
+            
 
         elif (col, orientation) in self._ecc_stims:
             stim = self._ecc_stims[(col, orientation)]
             stim.image = self._compute_ecc_tex(col, orientation, phase_cycles)
             stim.draw()
 
-        else:
-            raise ValueError(
-                f"Unknown (col={col!r}, orientation={orientation}) combination.\n"
-                f"Available bw keys:  {list(self._bw_stims.keys())}\n"
-                f"Available ecc keys: {list(self._ecc_stims.keys())}"
-            )
+        # else:
+        #     raise ValueError(
+        #         f"Unknown (col={col!r}, orientation={orientation}) combination.\n"
+        #         f"Available bw keys:  {list(self._bw_stims.keys())}\n"
+        #         f"Available ecc keys: {list(self._ecc_stims.keys())}"
+        #     )
 
     # ── Setters ───────────────────────────────────────────────────────────────
 

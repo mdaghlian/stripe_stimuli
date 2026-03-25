@@ -2,6 +2,8 @@
 *pycache__/
 *z_*/
 output/*
-/isoflicker/data/*
+python_scripts/isoflicker/data/*
+python_scripts/color_grating/data/*
 *.DS_Store
 *.asv
+*.vscode

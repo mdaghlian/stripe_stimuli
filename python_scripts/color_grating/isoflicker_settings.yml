@@ -108,5 +108,5 @@ repetitions: 1
 #                      measure the actual rate first via win.getActualFrameRate().
 # -----------------------------------------------------------------------------
 flicker:
-  flicker_rate_hz:    30    # Hz — how fast the ring alternates between the two colours
+  flicker_rate_hz:    60    # Hz — how fast the ring alternates between the two colours
   monitor_refresh_hz: 60    # Hz — fallback only; actual rate measured at runtime
