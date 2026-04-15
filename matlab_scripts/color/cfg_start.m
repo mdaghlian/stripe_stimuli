@@ -50,6 +50,19 @@ findIso_cfg.startPointRed = [180 200 220];
 stim_cfg = struct();
 % -> used in makeStim
 stim_cfg.nPhaseSteps = 30; 
+%{
+Drift speed is determined by three parameters:
+
+    speed (deg/s) = (monitor_hz / nPhaseSteps) / stim_cpd
+
+Where:
+    monitor_hz  = assumed 60 Hz 
+    nPhaseSteps = 30  (frames per full grating cycle, set in makeStimuli)
+    stim_cpd    = 0.4 (cycles per degree, baked into images at generation time)
+
+    -> temporal frequency = 60 / 30 = 2 Hz
+    -> drift speed        = 2 / 0.4 = 5 deg/s
+%}
 stim_cfg.lambda = 107; % in px
 stim_cfg.stim_cpd = 0.4;  % Stim cycles per degree - in competition with weird hard coded 107
 stim_cfg.thetaList = [0 45 90 135];
@@ -68,7 +81,7 @@ stim_cfg.FadingTime=1; % 1s originally
 
 
 % FOR SEQ
-stim_cfg.Bcondition_list= {'rest', 'bw','bw', 'rest', 'colour', 'bw', 'colour','bw', 'rest'};
+stim_cfg.Bcondition_list= {'bw', 'bw','rest', 'bw', 'bw', 'rest','bw', 'bw', };
 stim_cfg.Bori_per_stim = 2; % 2 orientations per stim
 stim_cfg.Bdirection_per_ori = 2; % 2 directions per orientation 
 
@@ -76,7 +89,7 @@ stim_cfg.Bdirection_per_ori = 2; % 2 directions per orientation
 
 %% CHEQ
 % --- Spatial frequency ---
-cheq_cfg.stim_cpd = 0.3;      % Radial spatial frequency in cycles per degree
+cheq_cfg.stim_cpd = 0.4;      % Radial spatial frequency in cycles per degree
 cheq_cfg.nWedges = 8;      % Radial spatial frequency in cycles per degree
 % --- Temporal frequency ---
 cheq_cfg.TF_hz = 4;           % Temporal frequency in Hz (checkerboard reversals per second)

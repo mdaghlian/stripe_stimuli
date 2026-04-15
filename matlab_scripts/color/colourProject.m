@@ -208,6 +208,14 @@ end
 disp(BlockSeqDir)
 disp(BlockSeq)
 
+totalFrames = length(BlockSeq);
+totalMins   = floor(totalFrames / 60);
+remainSecs  = mod(totalFrames, 60);
+fprintf('\n--- Run %d of %d ---\n', name_run, nRuns);
+fprintf('Duration: %d min %d sec\n', totalMins, remainSecs);
+fprintf('Blocks:   %d active + delay periods\n', nBlocks);
+
+
 % FIXED PARAMETERS
 X1=width/2-fixSize;
 X2=width/2+fixSize;
