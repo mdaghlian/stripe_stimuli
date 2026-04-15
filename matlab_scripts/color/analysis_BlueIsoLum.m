@@ -1,7 +1,7 @@
 function analysis_BlueIsoLum(pathfile)
 
 fs=filesep;
-
+cfg_start;
 % LOAD DATA
 load([pathfile fs 'bwIsoLumData.mat']);
 
@@ -24,7 +24,10 @@ end
 % over repetitions for each eccentricity
 meanData=mean(isoLumData,2);
 %eccList=[51.2 179.2 384];%mean of factors (0,.1), (.1,.25) and (.25,.5) times height
-eccList=[19.2 67.2 144];%new mean since we halve the generated images (512x384)
+% eccList=[19.2 67.2 144];%new mean since we halve the generated images (512x384)
+% -> Updated less magic number method: find the mean per ecc band
+% USING "TRUE" PIXEL VALUES HERE
+eccList = findIso_cfg.ecc_mean * cfg.height;
 
 % FIG. 1
 figure
@@ -49,14 +52,14 @@ set(gca,'FontSize',14);
 % FIG. 3
 params=polyfit(log(eccList),meanData',1);%linear least-squares fit
 %fitX=linspace(log(33.12),log(665.14),100);
-fitX=linspace(log(12.2),log(244.7),100);%line for (512x384)
-fitY=polyval(params,fitX);
+% fitX=linspace(log(12.2),log(244.7),100);%line for (512x384)
+fitY=polyval(params,log(eccList));
 
 figure
 hold all
 C1=scatter(log(eccList),meanData,25);
 set(C1,'linewidth',2);
-C2=plot(fitX,fitY,'--b');
+C2=plot(log(eccList),fitY,'--b');
 set(C2,'linewidth',3);
 hold off
 xlabel('Eccentricity (px) - log scale','FontSize',16);

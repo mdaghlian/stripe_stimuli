@@ -20,7 +20,7 @@ end
 % DIRECTORY
 % Suppress warnings from PsychToolbox path embedding and Matlab incompatibilities
 warning('off');
-addpath(genpath(cfg.PTB_dir));
+% addpath(genpath(cfg.PTB_dir));
 warning('on');
 
 dir_base=cfg.dir_base;
@@ -180,8 +180,6 @@ for i=1:length(Sequence)
     Block=[Block Sequence(i) Sequence(i)-1];
 end
 Block=[Block 0];
-disp(Block)
-blurs
 % Build frame-by-frame sequences for block identity (BlockSeq) and direction (BlockSeqDir).
 % Delay periods are filled with zeros. Active blocks are subdivided into thirds,
 % with direction alternating sign each third — starting positive for odd block IDs
@@ -209,7 +207,7 @@ end
 
 disp(BlockSeqDir)
 disp(BlockSeq)
-blurp
+
 % FIXED PARAMETERS
 X1=width/2-fixSize;
 X2=width/2+fixSize;

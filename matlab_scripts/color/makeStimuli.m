@@ -43,16 +43,55 @@ bwParams
 redParams
 
 % PARAMETERS
+stim_params = struct();
 % to reduce the calculation for generating and loading all image files,
 % we halved the size of the images (1920/2x1080/2)
 width=cfg.width * cfg.image_frac;
 height=cfg.height * cfg.image_frac;
-nPhaseSteps=stim_cfg.nPhaseSteps;
 lambda=stim_cfg.lambda;%in px
+spatialFreq=1/lambda;
+
+% -------------------------------
+% -------------------------------
+% -> drop in to run with cpd <- 
+px_per_cm = height / cfg.height_cm;  % accounts for downsampling
+cm_per_deg = 2 * cfg.distance_cm * tan(deg2rad(0.5));
+deg_per_px = 1/(px_per_cm * cm_per_deg);
+spatialFreq = stim_cfg.stim_cpd * deg_per_px; % 
+stim_params.px_per_cm = px_per_cm;
+stim_params.deg_per_px = deg_per_px;
+
+% Make a struct to save stim_cfg, findIso_cfg, cfg, and px_per_cm etc
+% Create a structure to consolidate all experimental parameters
+
+stim_params.stim_cfg = stim_cfg;
+stim_params.findIso_cfg = findIso_cfg;
+stim_params.cfg = cfg;
+stim_params.spatialFreq_cpp = spatialFreq; % cycles per pixel
+stim_params.timestamp = datetime('now');
+stim_params.bwParams = bwParams;
+stim_params.redParams = redParams;
+% Generate a filename (example uses a subject ID if available in cfg)
+if isfield(cfg, 'subjectID')
+    filename = sprintf('stim_meta_%s_%s.mat', cfg.subjectID, datestr(now, 'yyyy-mm-dd_HHMM'));
+else
+    filename = sprintf('stim_metadata_%s.mat', datestr(now, 'yyyy-mm-dd_HHMM'));
+end
+stim_params.note = "NOTE based on IMAGE FRAC";
+% Save the struct to a mat file
+stim_file=[pathfile fs 'logfiles' fs filename];
+save(stim_file, 'stim_params');
+
+fprintf('Stimulus parameters saved successfully to: %s\n', filename);
+% ^^^ drop in to run with cpd ^^^ 
+% -------------------------------
+% -------------------------------
+
+nPhaseSteps=stim_cfg.nPhaseSteps;
 thetaList=stim_cfg.thetaList;
 
 phaseStep=1/nPhaseSteps;
-spatialFreq=1/lambda;
+
 X=1:width;%X is a vector from 1 to width
 Y=1:height;  
 [Xm,Ym]=meshgrid(X,Y);%2D matrices
@@ -60,8 +99,10 @@ R=sqrt(((Xm-width/2).^2)+((Ym-height/2).^2));
 R=log(R);
 R(isinf(R))=0;%to discard log(0)
 
+R = R * (1/cfg.image_frac); % Rescale because the fitting is done on full screen 
+
 % CALCULATE WEIGHTINGS
-fxn1=polyval(bwParams,R).*2;
+fxn1=polyval(bwParams,R); 
 fxn1(fxn1>255)=255;
 fxn1(fxn1<0)=0;
 

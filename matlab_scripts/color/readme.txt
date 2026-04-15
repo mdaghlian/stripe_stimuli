@@ -21,3 +21,23 @@
 - Across runs - the same blocks always have the same stim 
 - but orientation can change
 
+
+## Debug notes at FIL
+Try running...
+```matlab
+restoredefaultpath
+addpath('C:\...\Psychtoolbox\Psychbasic') % right click add path + subfolders
+addpath('C:\...\Psychtoolbox ) <- but here had to right click then add again... 
+```
+cycle through - try closing and reopening...
+Screen 
+
+## 
+
+
+findIsoluminance_Red('s001t', 's1');
+findIsoluminance_Blue('s001t', 's1');
+makeStimuli('s001t', 's1');
+
+
+

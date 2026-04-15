@@ -6,7 +6,7 @@ fs=filesep;
 
 % DIRECTORY
 warning('off');%suppress annoying warnings because of embedding psychtoolbox folders, Matlab incompatibilities and missing semicolons
-addpath(genpath(cfg.PTB_dir));
+% addpath(genpath(cfg.PTB_dir));
 warning('on');
 % warning ('off','Octave:language-extension');
 % warning('off','Octave:missing-semicolon');
@@ -194,36 +194,37 @@ try
         Screen('FillRect',offwptr,[0 0 0],[0 0 width height]);
         
         % ring
+        % ring
         if eccCond==1
-            imSize=.1350*height; %edited from .1 using spatfreq.m values
+            imSize=findIso_cfg.cond_px_bands(1)*height; %edited from .1 using spatfreq.m values
             X1=width/2-imSize;
             X2=width/2+imSize;
             Y1=height/2-imSize;
             Y2=height/2+imSize;
             Screen('FillOval',offwptr,[1 1 1],[X1 Y1 X2 Y2]);
         elseif eccCond==2
-            imSize=.3257*height; %edited from .25 using spatfreq.m values
+            imSize=findIso_cfg.cond_px_bands(2)*height; %edited from .25 using spatfreq.m values
             X1=width/2-imSize;
             X2=width/2+imSize;
             Y1=height/2-imSize;
             Y2=height/2+imSize;
             Screen('FillOval',offwptr,[1 1 1],[X1 Y1 X2 Y2]);
             
-            imSize=.1350*height; %edited from .1 using spatfreq.m values
+            imSize=findIso_cfg.cond_px_bands(1)*height; %edited from .1 using spatfreq.m values
             X1=width/2-imSize;
             X2=width/2+imSize;
             Y1=height/2-imSize;
             Y2=height/2+imSize;
             Screen('FillOval',offwptr,[0 0 0],[X1 Y1 X2 Y2]);
         elseif eccCond==3
-            imSize=.6603*height; %edited from .5 using spatfreq.m values
+            imSize=findIso_cfg.cond_px_bands(3)*height; %edited from .5 using spatfreq.m values
             X1=width/2-imSize;
             X2=width/2+imSize;
             Y1=height/2-imSize;
             Y2=height/2+imSize;
             Screen('FillOval',offwptr,[1 1 1],[X1 Y1 X2 Y2]);
             
-            imSize=.3257*height; %edited from .25 using spatfreq.m values
+            imSize=findIso_cfg.cond_px_bands(2)*height; %edited from .25 using spatfreq.m values
             X1=width/2-imSize;
             X2=width/2+imSize;
             Y1=height/2-imSize;
