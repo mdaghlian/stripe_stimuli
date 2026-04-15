@@ -96,9 +96,11 @@ cheq_cfg.TF_hz = 4;           % Temporal frequency in Hz (checkerboard reversals
                                % Each "reversal" flips black<->white, so
                                % at 8 Hz the pattern inverts 8 times/sec.
 % --- Block timing ---
-cheq_cfg.nBlocks   = 10;      % Total number of ON blocks
-cheq_cfg.BlockTime = 10;      % Duration of each ON (stimulus) block in seconds
-cheq_cfg.OffTime   = 10;      % Duration of each OFF (rest/fixation) block in seconds
+cheq_cfg.nBlocks   = 4;      % Total number of ON blocks
+cheq_cfg.BlockTime = 20;      % Duration of each ON (stimulus) block in seconds
+cheq_cfg.OffTime   = 45;      % Duration of each OFF (rest/fixation) block in seconds
+cheq_cfg.initial_blank=5;
+cheq_cfg.end_blank=5;
 
 % --- Fixation ---
 cheq_cfg.fixSize = 4;        % Fixation dot half-size in pixels

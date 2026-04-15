@@ -28,6 +28,18 @@ TF_hz     = cheq_cfg.TF_hz;      % reversals per second
 fixSize   = cheq_cfg.fixSize;
 save_screen = cheq_cfg.save_screen;
 
+if isfield(cheq_cfg,'initial_blank')
+    initial_blank = cheq_cfg.initial_blank;
+else
+    initial_blank = 0;
+end
+
+if isfield(cheq_cfg,'end_blank')
+    end_blank = cheq_cfg.end_blank;
+else
+    end_blank = 0;
+end
+
 reversalPeriod = 1 / TF_hz;      % seconds per half-cycle (one phase)
 
 % -------------------------------------------------------------------------
@@ -59,12 +71,22 @@ FileName = [runDir fs 'logfiles' fs name_subj '_' name_sess ...
 %   Structure: [off] [on off] × nBlocks
 %   Total duration = OffTime + nBlocks*(BlockTime + OffTime)
 BlockList = struct('type', {}, 'duration', {});
-BlockList(end+1) = struct('type','off','duration', OffTime);
+
+% --- Initial blank (extra padding before everything) ---
+if initial_blank > 0
+    BlockList(end+1) = struct('type','off','duration', initial_blank);
+end
+
+% --- Standard design ---
 for b = 1:nBlocks
     BlockList(end+1) = struct('type','on',  'duration', BlockTime);
     BlockList(end+1) = struct('type','off', 'duration', OffTime);
 end
 
+% --- End blank (extra padding after everything) ---
+if end_blank > 0
+    BlockList(end+1) = struct('type','off','duration', end_blank);
+end
 % Pre-compute onset times for each block (used in log)
 blockOnsets = zeros(1, numel(BlockList));
 t = 0;
@@ -87,6 +109,20 @@ FixationImage_White  = 255 * ones(3,3,3);
 FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
 FixationImage_Green2 = 180 * ones(3,3,3); FixationImage_Green2(:,:,[1 3]) = 0;
 BGimage = uint8(128 * ones(height, width));   % grey background
+
+% 
+predictedDuration = initial_blank + nBlocks * (BlockTime + OffTime) + end_blank;
+
+fprintf(['Predicted run time:\n' ...
+         '  Initial blank (initial): %.2f s\n' ...
+         '  Blocks: %d × (%.2f s ON + %.2f s OFF)\n' ...
+         '  Final blanks (final): %.2f s\n' ...
+         '  Total: %.2f s \n\n' ...
+         ], ...
+         initial_blank, nBlocks, BlockTime, OffTime, end_blank, ...
+         predictedDuration);
+t_end = datetime('now') + seconds(predictedDuration);
+fprintf('Expected end time:    %s\n\n', datestr(t_end, 'HH:MM:SS'));
 
 % -------------------------------------------------------------------------
 % PTB
@@ -257,7 +293,10 @@ try
 
     names     = {'rest', 'checkerboard'};
     onsets    = {rest_onset, stim_onset};
-    durations = {OffTime,   BlockTime};
+    rest_durations = [BlockList(isOffBlock).duration];
+    stim_durations = [BlockList(isOnBlock).duration];
+
+    durations = {rest_durations, stim_durations};
 
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', '-mat');
