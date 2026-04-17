@@ -46,7 +46,7 @@ ylabel('Set Isoluminance Value','FontSize',16);
 set(gca,'FontSize',14);
 
 % FIG. 3
-params=polyfit(log(eccList),meanData',1);%linear least-squares fit
+params=polyfit(log(eccList),meanData,1);%linear least-squares fit
 %fitX=linspace(log(33.12),log(665.14),100);
 % fitX=linspace(log(12.2),log(244.7),100);%line for (512x384)
 fitY=polyval(params,log(eccList));
