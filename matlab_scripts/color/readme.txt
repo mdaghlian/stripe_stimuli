@@ -1,3 +1,47 @@
+# Instructions for running: 
+
+subjid='ZZ'
+sesid='01'
+
+% 1) Blue calibration
+% run -> 
+findIsoluminance_Blue(subjid,sesid);
+% When finished press escape
+
+% 2) Red calibration
+findIsoluminance_Red(subjid, sesid);
+% When finished press escape
+
+% 3) Create stimuli 
+makeStimuli(subjid, sesid);
+
+% 4) Run experiment
+colourProject(subjid, sesid, 1); % run 1 
+colourProject(subjid, sesid, 2); % run 1 
+
+% etc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Note on randomisation in colourProject.m 
