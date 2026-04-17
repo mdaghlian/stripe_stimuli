@@ -5,6 +5,8 @@ cfg = struct();
 cfg.PTB_dir = '/Users/marcusdaghlian/programs/experiments/Psychtoolbox';
 cfg.dir_base = '/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/color/logs';
 
+cfg.eye_track = 0;
+cfg.eye_calib = 0;
 % Screen settings
 %{
 From FIL pdf

@@ -171,7 +171,6 @@ else
 end
 disp('sequence')
 disp(Sequence)
-disp('heloo')
 % Expand the Sequence into a full Block list by interleaving paired block IDs.
 % Each condition entry N becomes two consecutive blocks: N (even) and N-1 (odd),
 % representing the two halves of each condition block. Delay periods (0) flank each pair.
@@ -262,6 +261,21 @@ try
     Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
     Screen('DrawTexture',wptr,textureIndex(4),[],[X1 Y1 X2 Y2]);  
     Screen('Flip',wptr);
+
+    % EYE TRACKING INITIALISATION
+    if cfg.eye_track
+        EyelinkInit(0, 1);
+        el = EyelinkInitDefaults(wptr);
+        el.backgroundcolour = GrayIndex(wptr);
+        el.foregroundcolour = BlackIndex(wptr);
+        el.calibrationtargetcolour = BlackIndex(wptr);
+        EyelinkUpdateDefaults(el);
+        Eyelink('Openfile', 'etdata.edf');
+        if cfg.eye_calib
+            EyelinkDoTrackerSetup(el);
+        end
+        Eyelink('StartRecording');
+    end
     
     % wait for trigger command
     [~,~,KeyCode]=KbCheck; 
@@ -301,10 +315,12 @@ try
     colour_onset=[];
     LogData=[];    
     FixationData=[];
+    EyelinkData=[];
     BlockSeq=[BlockSeq zeros(1,FadingTime)];%append zeros to fade out at the end of the run even if DelayTime is set to 0.
     BlockSeqDir=[BlockSeqDir zeros(1,FadingTime)];
     TriggerTime=[];
     img_count=0;
+    
     while toc-StartTime<length(BlockSeq)-FadingTime%because of the appended zeros, we subtract the FadingTime here                                 
         if (BlockSeq(floor(toc-StartTime+1))==0) 
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
@@ -410,6 +426,12 @@ try
                 
             img_count = img_count + 1;
         end
+
+        % collect eye tracking sample
+        if cfg.eye_track
+            evt = Eyelink('NewestFloatSample');
+            EyelinkData = cat(1, EyelinkData, [toc-StartTime evt.gx(1) evt.gy(1) evt.pa(1)]);
+        end
     end
     
     % end screen
@@ -434,6 +456,14 @@ try
     ShowCursor;
     Screen('Preference','VisualDebugLevel',oldVisualDebugLevel);
     Screen('Preference','SuppressAllWarnings',oldSuppressAllWarnings);
+
+    % stop eye tracking
+    if cfg.eye_track
+        Eyelink('StopRecording');
+        Eyelink('CloseFile');
+        Eyelink('ReceiveFile', 'etdata.edf', [FileName '_eyetrack.edf']);
+        Eyelink('Shutdown');
+    end
     
     % savings
     names=cell(1,3);
@@ -450,12 +480,18 @@ try
     durations{3}=BlockTime;
 
     save([FileName '_Cond.mat'],'names','onsets','durations','-mat');
+    save([FileName '_Eye.mat'],'EyelinkData','-mat');
     save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','-mat');
-    analysis_Stability(FileName);
-    analysis_Fixation(FileName);
-    
+    % analysis_Stability(FileName);
+    % analysis_Fixation(FileName);
 catch err
     Screen('CloseAll');
     ShowCursor;
+    if cfg.eye_track
+        Eyelink('StopRecording');
+        Eyelink('CloseFile');
+        Eyelink('ReceiveFile', 'etdata.edf', [FileName '_eyetrack.edf']);
+        Eyelink('Shutdown');
+    end
     rethrow(err);  
 end
