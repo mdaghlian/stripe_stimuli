@@ -14,7 +14,7 @@ From FIL pdf
 
 Resolution      Width       Height      Distance    Height (dva)
 1920 x 1200     355         220         1130        11.1
-1920 x 1080     355         200         1130        10.1
+1920 x 1080     355         200         1130        10.1 <<<< USE THIS ONE
 
 %}
 
