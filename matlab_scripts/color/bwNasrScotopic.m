@@ -49,7 +49,9 @@ initial_blank = 16;    % blank duration at run onset, s
 nPhaseSteps   = 60;    % grating phase resolution (motion is driven by
                         % real elapsed time, not frame count, so this
                         % only sets how finely phase is quantised)
-fixSize       = 10;    % fixation square half-size, px
+fixSize       = 10;    % fixation square half-size, px (used when fixStyle = 'dot')
+fixStyle      = 'dot'; % 'dot' (small square) or 'cross' (big cross, corner to corner)
+fixLineWidth  = 4;     % fixation line width, px (used when fixStyle = 'cross')
 save_screen   = 0;     % set to 1 to save a screenshot every frame
 
 % Base grating orientations that actually need to be rendered. A grating
@@ -158,6 +160,11 @@ FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
 FixationImage_Green2 = 180 * ones(3,3,3); FixationImage_Green2(:,:,[1 3]) = 0;
 BGimage = uint8(128 * ones(height, width));   % grey background (spatially uniform field)
 
+% RGB colour per fixation index (1=Green1, 2=Green2, 3=White), used to
+% draw the 'cross' fixation style with the same colour cycling as the
+% 'dot' style (which uses the textures above instead).
+fixColors = [0 255 0; 0 180 0; 255 255 255];
+
 % -------------------------------------------------------------------------
 % PTB
 % -------------------------------------------------------------------------
@@ -184,7 +191,12 @@ try
 
     % --- Pre-trigger screen (white fixation on grey) ---
     Screen('DrawTexture', wptr, bgTex,    [], [0 0 width height]);
-    Screen('DrawTexture', wptr, fixTex(3),[], [X1 Y1 X2 Y2]);
+    if strcmp(fixStyle, 'cross')
+        Screen('DrawLine', wptr, fixColors(3,:), 0, 0, width, height, fixLineWidth);
+        Screen('DrawLine', wptr, fixColors(3,:), 0, height, width, 0, fixLineWidth);
+    else
+        Screen('DrawTexture', wptr, fixTex(3),[], [X1 Y1 X2 Y2]);
+    end
     Screen('Flip', wptr);
 
     % --- Wait for trigger ---
@@ -202,7 +214,12 @@ try
 
     % Post-trigger flip (green fixation)
     Screen('DrawTexture', wptr, bgTex,    [], [0 0 width height]);
-    Screen('DrawTexture', wptr, fixTex(1),[], [X1 Y1 X2 Y2]);
+    if strcmp(fixStyle, 'cross')
+        Screen('DrawLine', wptr, fixColors(1,:), 0, 0, width, height, fixLineWidth);
+        Screen('DrawLine', wptr, fixColors(1,:), 0, height, width, 0, fixLineWidth);
+    else
+        Screen('DrawTexture', wptr, fixTex(1),[], [X1 Y1 X2 Y2]);
+    end
     Screen('Flip', wptr);
 
     % ---- Log structures ----
@@ -265,7 +282,12 @@ try
             direction = 0;
         end
 
-        Screen('DrawTexture', wptr, fixTex(FixIndex), [], [X1 Y1 X2 Y2]);
+        if strcmp(fixStyle, 'cross')
+            Screen('DrawLine', wptr, fixColors(FixIndex,:), 0, 0, width, height, fixLineWidth);
+            Screen('DrawLine', wptr, fixColors(FixIndex,:), 0, height, width, 0, fixLineWidth);
+        else
+            Screen('DrawTexture', wptr, fixTex(FixIndex), [], [X1 Y1 X2 Y2]);
+        end
         Screen('Flip', wptr);
 
         % --- Log ---
