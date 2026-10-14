@@ -17,6 +17,8 @@ Resolution      Width       Height      Distance    Height (dva)
 1920 x 1080     355         200         1130        10.1 <<<< USE THIS ONE
 
 %}
+% mac = 1470, 956
+% acer home = 2560, 1440
 
 cfg.width = 1470; % 1920;
 cfg.height = 956; % 1080;
@@ -32,7 +34,7 @@ cfg.px_per_deg = px_per_cm * cm_per_deg;
 
 % findIso_cfg settings
 findIso_cfg = struct();
-findIso_cfg.nReps = 1; % 3
+findIso_cfg.nReps = 3; % 3
 findIso_cfg.JitterSize = 10;
 findIso_cfg.nCond1 = 3; % eccentricity bands
 findIso_cfg.cond_px_bands = [.1350 .3527 .6603];
@@ -42,6 +44,10 @@ findIso_cfg.ecc_mean = [
     ((findIso_cfg.cond_px_bands(2)+findIso_cfg.cond_px_bands(3))/2)
     ];
 findIso_cfg.fixSize = 4; % fixation dot size (pixels)
+% Flicker alternates every frame, so flicker frequency = refresh/2.
+% Abort if the measured refresh rate is not the expected one.
+findIso_cfg.expectedHz = 60;
+findIso_cfg.toleranceHz = 1;
 % Per ecc band; what is the starting *luminance* of the channels being adjusted
 % In blue -> applies to grey; in red -> applies to red
 findIso_cfg.startPointBlue = [60 70 80];
@@ -109,3 +115,28 @@ cheq_cfg.fixSize = 4;        % Fixation dot half-size in pixels
 
 % --- Misc display ---
 cheq_cfg.save_screen = 0;     % Set to 1 to save screenshots each frame
+
+
+%% MT LOCALISER (mtLocalizer.m)
+% Based on NasrOriginal/Motion/My_MT_localizer_HighRes.m. Default values
+% are measured from Nasr's pre-rendered ring images (MyStimuli/1_*.tif),
+% converted to degrees with the 38.4 px/deg that Nasr's code assumes.
+mt_cfg = struct();
+% --- Stimulus: thin dark rings on grey, expanding/contracting ---
+mt_cfg.ringPeriod_deg  = 2.0;   % centre-to-centre ring spacing (Nasr: 76.7 px)
+mt_cfg.ringWidth_deg   = 0.42;  % ring thickness (Nasr: 16 px)
+mt_cfg.speed_dps       = 5;     % radial speed, deg/s (Nasr: 3.2 px/frame at 60 Hz)
+mt_cfg.apertureFrac    = 0.5;   % aperture radius as a fraction of screen height (Nasr: full image height)
+mt_cfg.ringLum         = 101;   % ring grey level (Nasr: 101)
+mt_cfg.bgLum           = 127;   % background grey level (Nasr: 127)
+mt_cfg.nPhaseSteps     = 48;    % phase resolution per ring period (motion is time-based)
+% --- Block timing (Nasr: 12 s + 5 x (24 s static + 24 s moving) + 12 s = 264 s) ---
+mt_cfg.initial_blank   = 12;    % rest at run start, s
+mt_cfg.end_blank       = 12;    % rest at run end, s
+mt_cfg.StaticTime      = 24;    % static block, s
+mt_cfg.MovingTime      = 24;    % moving block, s
+mt_cfg.nCycles         = 5;     % number of static+moving pairs
+mt_cfg.reversalTime    = 2;     % moving blocks reverse direction every reversalTime s
+mt_cfg.startDir        = -1;    % first direction in each moving block: -1 contract, +1 expand (Nasr: contract)
+% --- Misc ---
+mt_cfg.save_screen     = 0;     % set to 1 to save a screenshot every frame
