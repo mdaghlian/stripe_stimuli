@@ -8,6 +8,10 @@ function bwNasrScotopic(name_subj, name_sess, name_run)
 %   reverses every 6 s. Grating orientation steps by 45 deg from one
 %   block to the next (starting orientation randomised per run).
 %
+%   Gratings are pre-rendered by makeScotopic (settings in scot_cfg,
+%   cfg_start.m) and loaded from <subj>/bwNasrScotopic/<sess>/stimuli.
+%   Run makeScotopic first.
+%
 %   Timing: each run opens with a 16 s spatially-uniform (blank) field,
 %   followed by 7 blocks of 16 s stimulation, each block followed by
 %   16 s blank. Total run duration = 16 + 7*(16+16) = 240 s.
@@ -37,31 +41,21 @@ end
 screenid    = cfg.screenid;
 width       = cfg.width;
 height      = cfg.height;
-image_frac  = cfg.image_frac;
-distance_cm = cfg.distance_cm;
-height_cm   = cfg.height_cm;
 dir_base    = cfg.dir_base;
 
 % -------------------------------------------------------------------------
-% ADJUSTABLE STIMULUS PARAMETERS
+% Stimulus / timing parameters (scot_cfg in cfg_start). Image-dependent
+% values (stim_cpd, nPhaseSteps, baseOriList) are taken from the
+% makeScotopic metadata below so they always match the frames on disk.
 % -------------------------------------------------------------------------
-stim_cpd      = 0.2;   % spatial frequency, cycles/degree
-speed_dps     = 4;     % drift speed, deg/s
-reversalTime  = 6;     % motion direction reversal period within a block, s
-oriStep       = 45;    % orientation step between blocks, deg
-nBlocks       = 7;     % number of stimulation blocks
-BlockTime     = 16;    % stimulation block duration, s
-BlankTime     = 16;    % blank duration after each block, s
-initial_blank = 16;    % blank duration at run onset, s
-nPhaseSteps   = 60;    % grating phase resolution (motion is driven by
-                        % real elapsed time, not frame count, so this
-                        % only sets how finely phase is quantised)
-save_screen   = 0;     % set to 1 to save a screenshot every frame
-
-% Base grating orientations that actually need to be rendered. A grating
-% is visually identical under a 180 deg rotation, so the 45-deg block
-% sequence (which can run past 180) only ever needs these 4 images.
-baseOriList = [0 45 90 135];
+speed_dps     = scot_cfg.speed_dps;
+reversalTime  = scot_cfg.reversalTime;
+oriStep       = scot_cfg.oriStep;
+nBlocks       = scot_cfg.nBlocks;
+BlockTime     = scot_cfg.BlockTime;
+BlankTime     = scot_cfg.BlankTime;
+initial_blank = scot_cfg.initial_blank;
+save_screen   = scot_cfg.save_screen;
 
 % -------------------------------------------------------------------------
 % Keys
@@ -74,6 +68,20 @@ TriggerSign = KbName('5%');
 % Paths & logfile
 % -------------------------------------------------------------------------
 pathfile = [dir_base fs name_subj fs 'bwNasrScotopic' fs name_sess];
+stimPath = [pathfile fs 'stimuli'];
+metaFile = [stimPath fs 'logfiles' fs 'stim_metadata.mat'];
+if ~isfile(metaFile)
+    fprintf('No scotopic stimuli in %s - building them now.\n', stimPath);
+    makeScotopic(name_subj, name_sess);
+end
+load(metaFile, 'stim_params_scot');
+stim_cpd    = stim_params_scot.stim_cpd;
+nPhaseSteps = stim_params_scot.nPhaseSteps;
+% A grating is identical under a 180 deg rotation, so the block sequence
+% (which can run past 180) only needs these rendered orientations.
+baseOriList = stim_params_scot.baseOriList;
+px_per_deg  = stim_params_scot.px_per_deg;
+
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if ~isfolder(runDir)
     mkdir(runDir);
@@ -125,31 +133,13 @@ t_end = datetime('now') + seconds(totalDuration);
 fprintf('Expected end time: %s\n\n', datestr(t_end, 'HH:MM:SS'));
 
 % -------------------------------------------------------------------------
-% Generate grating stimuli (in-memory, no disk dependency / isoluminance
-% fitting needed - full-contrast achromatic gratings only)
+% Load grating stimuli (pre-rendered by makeScotopic)
 % -------------------------------------------------------------------------
-gw = round(width  * image_frac);
-gh = round(height * image_frac);
-
-px_per_cm   = gh / height_cm;                       % accounts for downsampling
-cm_per_deg  = 2 * distance_cm * tan(deg2rad(0.5));
-deg_per_px  = 1 / (px_per_cm * cm_per_deg);
-px_per_deg  = 1 / deg_per_px;
-spatialFreq_cpp = stim_cpd * deg_per_px;             % cycles per pixel
-
-X = 1:gw; Y = 1:gh;
-[Xm, Ym] = meshgrid(X, Y);
-
-phaseStep = 1 / nPhaseSteps;
 gratingImgs = cell(length(baseOriList), nPhaseSteps);
 for o = 1:length(baseOriList)
-    thetaRad = deg2rad(baseOriList(o));
-    Xt = Xm * cos(thetaRad) + Ym * sin(thetaRad);
-    Xp = Xt * spatialFreq_cpp * 2 * pi;
+    oriFolder = [stimPath fs 'bw_grating_' sprintf('%d', baseOriList(o)) '_degrees'];
     for step = 1:nPhaseSteps
-        phaseRad = phaseStep * step * 2 * pi;
-        grating  = sin(Xp + phaseRad);                       % [-1, 1]
-        gratingImgs{o, step} = uint8(((grating + 1) / 2) * 255); % max contrast, 0-255
+        gratingImgs{o, step} = imread([oriFolder fs sprintf('%d', step) '.png']);
     end
 end
 
@@ -173,7 +163,9 @@ try
     gratingTex = zeros(length(baseOriList), nPhaseSteps);
     for o = 1:length(baseOriList)
         for step = 1:nPhaseSteps
-            gratingTex(o, step) = Screen('MakeTexture', wptr, gratingImgs{o, step});
+            img = gratingImgs{o, step};
+            img = double(img) / double(intmax(class(img)));   % 16-bit (or older 8-bit) PNG -> [0,1]
+            gratingTex(o, step) = Screen('MakeTexture', wptr, img, [], [], 1);
         end
     end
 

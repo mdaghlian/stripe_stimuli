@@ -4,8 +4,9 @@ function mtLocalizer(name_subj, name_sess, name_run)
 %   mtLocalizer(name_subj, name_sess, name_run)
 %
 %   Based on NasrOriginal/Motion/My_MT_localizer_HighRes.m. Nasr's version
-%   loads 24 pre-rendered ring images; here the rings are generated in
-%   memory from mt_cfg (cfg_start.m), in degrees of visual angle.
+%   loads 24 pre-rendered ring images; here the rings are pre-rendered by
+%   makeMT from mt_cfg (cfg_start.m), in degrees of visual angle, and
+%   loaded from <subj>/mt/<sess>/stimuli. Run makeMT first.
 %
 %   Stimulus: thin dark rings on a grey background inside a circular
 %   aperture. In moving blocks the rings expand/contract at
@@ -43,18 +44,11 @@ end
 screenid    = cfg.screenid;
 width       = cfg.width;
 height      = cfg.height;
-image_frac  = cfg.image_frac;
-distance_cm = cfg.distance_cm;
-height_cm   = cfg.height_cm;
 dir_base    = cfg.dir_base;
 
-ringPeriod_deg = mt_cfg.ringPeriod_deg;
-ringWidth_deg  = mt_cfg.ringWidth_deg;
+% Image-dependent values (ring period, nPhaseSteps, bgLum) are taken from
+% the makeMT metadata below so they always match the frames on disk.
 speed_dps      = mt_cfg.speed_dps;
-apertureFrac   = mt_cfg.apertureFrac;
-ringLum        = mt_cfg.ringLum;
-bgLum          = mt_cfg.bgLum;
-nPhaseSteps    = mt_cfg.nPhaseSteps;
 initial_blank  = mt_cfg.initial_blank;
 end_blank      = mt_cfg.end_blank;
 StaticTime     = mt_cfg.StaticTime;
@@ -75,6 +69,18 @@ TriggerSign = KbName('5%');
 % Paths & logfile
 % -------------------------------------------------------------------------
 pathfile = [dir_base fs name_subj fs 'mt' fs name_sess];
+stimPath = [pathfile fs 'stimuli'];
+metaFile = [stimPath fs 'logfiles' fs 'stim_metadata.mat'];
+if ~isfile(metaFile)
+    fprintf('No MT stimuli in %s - building them now.\n', stimPath);
+    makeMT(name_subj, name_sess);
+end
+load(metaFile, 'stim_params_mt');
+ringPeriod_deg = stim_params_mt.ringPeriod_deg;
+nPhaseSteps    = stim_params_mt.nPhaseSteps;
+bgLum          = stim_params_mt.bgLum;
+px_per_deg     = stim_params_mt.px_per_deg;
+
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if ~isfolder(runDir)
     mkdir(runDir);
@@ -122,34 +128,12 @@ t_end = datetime('now') + seconds(totalDuration);
 fprintf('Expected end time: %s\n\n', datestr(t_end, 'HH:MM:SS'));
 
 % -------------------------------------------------------------------------
-% Generate ring stimuli (in memory). One full ring period is rendered in
-% nPhaseSteps images; the radial offset of each image is
-% (step-1)/nPhaseSteps of a period, so higher step = rings further out.
+% Load ring stimuli (pre-rendered by makeMT). One full ring period in
+% nPhaseSteps images; higher step = rings further out.
 % -------------------------------------------------------------------------
-gw = round(width  * image_frac);
-gh = round(height * image_frac);
-
-px_per_cm  = gh / height_cm;                    % accounts for downsampling
-cm_per_deg = 2 * distance_cm * tan(deg2rad(0.5));
-px_per_deg = px_per_cm * cm_per_deg;
-
-period_px   = ringPeriod_deg * px_per_deg;
-ringW_px    = ringWidth_deg  * px_per_deg;
-aperture_px = apertureFrac   * gh;
-
-[Xm, Ym] = meshgrid(1:gw, 1:gh);
-R = sqrt((Xm - (gw+1)/2).^2 + (Ym - (gh+1)/2).^2);
-
 ringImgs = cell(1, nPhaseSteps);
 for step = 1:nPhaseSteps
-    offset_px = (step - 1) / nPhaseSteps * period_px;
-    % distance (px) from the centre line of the nearest ring
-    e = abs(mod(R - offset_px + period_px/2, period_px) - period_px/2);
-    % ring coverage with a 1-px linear edge (anti-aliasing)
-    cover = min(max(ringW_px/2 - e + 0.5, 0), 1);
-    % soft aperture edge
-    cover = cover .* min(max(aperture_px - R + 0.5, 0), 1);
-    ringImgs{step} = uint8(round(bgLum + (ringLum - bgLum) * cover));
+    ringImgs{step} = imread([stimPath fs 'ring_frames' fs sprintf('%d', step) '.png']);
 end
 
 % -------------------------------------------------------------------------
@@ -172,7 +156,9 @@ try
     % --- Ring textures ---
     ringTex = zeros(1, nPhaseSteps);
     for step = 1:nPhaseSteps
-        ringTex(step) = Screen('MakeTexture', wptr, ringImgs{step});
+        img = ringImgs{step};
+        img = double(img) / double(intmax(class(img)));   % 16-bit (or older 8-bit) PNG -> [0,1]
+        ringTex(step) = Screen('MakeTexture', wptr, img, [], [], 1);
     end
 
     % --- Background texture ---

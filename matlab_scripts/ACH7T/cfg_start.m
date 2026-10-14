@@ -131,7 +131,28 @@ cheq_cfg.end_blank=5;
 cheq_cfg.save_screen = 0;     % Set to 1 to save screenshots each frame
 
 
-%% MT LOCALISER (mtLocalizer.m)
+%% SCOTOPIC (makeScotopic.m -> bwNasrScotopic.m)
+% Achromatic drifting grating, Nasr scotopic paradigm.
+% Timing: 16 + 7 x (16 s stim + 16 s blank) = 240 s
+scot_cfg = struct();
+% --- Stimulus (baked into images by makeScotopic) ---
+scot_cfg.stim_cpd      = 0.2;   % spatial frequency, cycles/degree
+scot_cfg.nPhaseSteps   = 60;    % phase resolution per cycle (motion is time-based)
+scot_cfg.baseOriList   = [0 45 90 135]; % rendered orientations (gratings repeat every 180 deg)
+% --- Motion ---
+scot_cfg.speed_dps     = 4;     % drift speed, deg/s
+scot_cfg.reversalTime  = 6;     % motion direction reverses every reversalTime s
+% --- Block timing ---
+scot_cfg.oriStep       = 45;    % orientation step between blocks, deg
+scot_cfg.nBlocks       = 7;     % number of stimulation blocks
+scot_cfg.BlockTime     = 16;    % stimulation block, s
+scot_cfg.BlankTime     = 16;    % blank after each block, s
+scot_cfg.initial_blank = 16;    % blank at run start, s
+% --- Misc ---
+scot_cfg.save_screen   = 0;     % set to 1 to save a screenshot every frame
+
+
+%% MT LOCALISER (makeMT.m -> mtLocalizer.m)
 % Based on NasrOriginal/Motion/My_MT_localizer_HighRes.m. Default values
 % are measured from Nasr's pre-rendered ring images (MyStimuli/1_*.tif),
 % converted to degrees with the 38.4 px/deg that Nasr's code assumes.

@@ -21,6 +21,12 @@ colourProject(subjid, sesid, 2); % run 1
 
 % etc
 
+% Other experiments: make stimuli once per subject/session, then run
+makeCheq(subjid, sesid);      cheqProject(subjid, sesid, 1);
+makeScotopic(subjid, sesid);  bwNasrScotopic(subjid, sesid, 1);
+makeMT(subjid, sesid);        mtLocalizer(subjid, sesid, 1);
+% Stimuli are saved to logs/<subjid>/<experiment>/<sesid>/stimuli
+
 
 
 

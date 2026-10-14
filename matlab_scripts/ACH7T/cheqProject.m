@@ -54,6 +54,10 @@ TriggerSign = KbName('5%');
 dir_base = cfg.dir_base;
 pathfile = [dir_base fs name_subj fs 'cheq' fs name_sess];
 stimPath = [pathfile fs 'stimuli' fs 'checkerboard_frames'];
+if ~isfile([stimPath fs 'frame1.png'])
+    fprintf('No checkerboard stimuli in %s - building them now.\n', stimPath);
+    makeCheq(name_subj, name_sess);
+end
 
 runDir = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if ~isfolder(runDir)
