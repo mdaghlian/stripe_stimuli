@@ -39,7 +39,6 @@ save_screen=stim_cfg.save_screen;   % set to 1 to save screenshots
 nSteps=stim_cfg.nSteps;
 orientationList=stim_cfg.thetaList;
 colourCondLabels=stim_cfg.colourCondLabels;
-fixSize=stim_cfg.fixSize;
 
 % INITIALISE KEYS
 escapeKey=KbName('ESCAPE');
@@ -119,8 +118,7 @@ if name_run == 1
 else
     % --- Subsequent runs: load the colour/BW pattern from the previous run
     %     and generate a new sequence that preserves the same pattern ---
-    load([FileName_old '.mat']);
-    clear FixationData LogData
+    load([FileName_old '.mat'], 'pseudorandomisation');
     
     redo=1;
     while redo
@@ -215,18 +213,8 @@ fprintf('Duration: %d min %d sec\n', totalMins, remainSecs);
 fprintf('Blocks:   %d active + delay periods\n', nBlocks);
 
 
-% FIXED PARAMETERS
-X1=width/2-fixSize;
-X2=width/2+fixSize;
-Y1=height/2-fixSize;
-Y2=height/2+fixSize;
-
-% FIXATION COLOUR DEFINITION
-FixationImage_White=255*ones(3,3,3);
-FixationImage_Green1=255*ones(3,3,3); 
-FixationImage_Green1(:,:,[1 3])=0;
-FixationImage_Green2=180*ones(3,3,3); 
-FixationImage_Green2(:,:,[1 3])=0;
+% FIXATION TASK (fix_cfg in cfg_start)
+fixTask=FixationTask(fix_cfg,width,height);
 Image=uint8(128*ones(height,width));%grey background
 
 % OPEN PSYCHTOOLBOX WINDOW
@@ -251,15 +239,12 @@ try
         end
     end
 
-    % load background and fixation spot
+    % load background
     textureIndex(1)=Screen('MakeTexture',wptr,Image);
-    textureIndex(2)=Screen('MakeTexture',wptr,FixationImage_Green1);
-    textureIndex(3)=Screen('MakeTexture',wptr,FixationImage_Green2);
-    textureIndex(4)=Screen('MakeTexture',wptr,FixationImage_White);
     
-    % flip start screen before trigger (white fixation spot)
+    % flip start screen before trigger (idle fixation)
     Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
-    Screen('DrawTexture',wptr,textureIndex(4),[],[X1 Y1 X2 Y2]);  
+    fixTask.draw(wptr);
     Screen('Flip',wptr);
 
     % EYE TRACKING INITIALISATION
@@ -288,9 +273,10 @@ try
     % start time measurement (in seconds)
     tic;
     
-    % flip start screen after trigger (green fixation spot)
+    % flip start screen after trigger (fixation task starts)
+    fixTask.start();
     Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
-    Screen('DrawTexture',wptr,textureIndex(2),[],[X1 Y1 X2 Y2]);  
+    fixTask.draw(wptr);
     Screen('Flip',wptr);
     
     % first time query
@@ -300,10 +286,6 @@ try
     
     % experiment 
     cnt=1;
-    FixationColour=0; 
-    FixIndex=3;  
-    FixCnt=0;
-    FixRand=0;
     FadingTime=1;
     FadeNeg=0;
     FadePos=0;
@@ -314,7 +296,6 @@ try
     bw_onset=[];
     colour_onset=[];
     LogData=[];    
-    FixationData=[];
     EyelinkData=[];
     BlockSeq=[BlockSeq zeros(1,FadingTime)];%append zeros to fade out at the end of the run even if DelayTime is set to 0.
     BlockSeqDir=[BlockSeqDir zeros(1,FadingTime)];
@@ -322,9 +303,10 @@ try
     img_count=0;
     
     while toc-StartTime<length(BlockSeq)-FadingTime%because of the appended zeros, we subtract the FadingTime here                                 
+        fixTask.update(toc-StartTime);
         if (BlockSeq(floor(toc-StartTime+1))==0) 
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
-            Screen('DrawTexture',wptr,textureIndex(FixIndex),[],[X1 Y1 X2 Y2]);
+            fixTask.draw(wptr);
             if OnsetPos==0
                 OnsetPos=1;
                 rest_onset=[rest_onset toc-StartTime];
@@ -371,7 +353,7 @@ try
             end
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);%set underlying grey image as target for fading
             Screen('DrawTexture',wptr,gratingTexture(imgIndex,cnt),[],[0 0 width height],[],[],alphaImg);
-            Screen('DrawTexture',wptr,textureIndex(FixIndex),[],[X1 Y1 X2 Y2]);
+            fixTask.draw(wptr);
         end
         tempLog=[toc-StartTime BlockSeq(floor(toc-StartTime)+1) cnt alphaImg];
         LogData=cat(1,LogData,tempLog);
@@ -386,30 +368,13 @@ try
                 if KeyCode(escapeKey)
                     break
                 elseif (KeyCode(DetectKey) && toc-LastResponseTime>0.3)
-                    FixationData=cat(1,FixationData,[3 toc-StartTime]);
+                    fixTask.respond(toc-StartTime);
                     LastResponseTime=toc;
                 elseif KeyCode(TriggerSign)
                     TriggerTime=[TriggerTime toc-StartTime];
                 end
             end
         end
-        
-        % randomise colour of fixation spot
-        % colour is changed each 240-600 frames, i.e., between 4-10 seconds at a frame rate of 60 Hz
-        if FixCnt == FixRand 
-            FixCnt=0;
-            FixRand=randi(361)+239;
-            if FixationColour==1
-                FixationColour=0;
-                FixIndex=2;
-                FixationData=cat(1,FixationData,[2 toc-StartTime]);
-            else
-                FixationColour=1;
-                FixIndex=3;
-                FixationData=cat(1,FixationData,[1 toc-StartTime]);
-            end
-        end
-        FixCnt=FixCnt+1;
         
         % save screen shots
         if save_screen ~=0
@@ -479,9 +444,10 @@ try
     durations{2}=BlockTime;
     durations{3}=BlockTime;
 
+    FixationData=fixTask.data;%[code t] 1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'],'names','onsets','durations','-mat');
     save([FileName '_Eye.mat'],'EyelinkData','-mat');
-    save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','-mat');
+    save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','fix_cfg','-mat');
     % analysis_Stability(FileName);
     % analysis_Fixation(FileName);
 catch err

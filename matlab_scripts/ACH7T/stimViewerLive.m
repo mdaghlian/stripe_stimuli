@@ -67,8 +67,6 @@ modeLabel  = containers.Map({2,3,4,5}, { ...
     'Nasr scotopic-style (0.2 cyc/deg, 4 deg/s, auto-reverses every 6 s)', ...
     'Nasr photopic-thick (0.1 cyc/deg, 8 deg/s) - press M for moving/stationary'});
 
-fixSize = 10;
-
 % -------------------------------------------------------------------------
 % Keys
 % -------------------------------------------------------------------------
@@ -83,13 +81,12 @@ keyRight   = KbName('RightArrow');
 keyM       = KbName('m');
 
 % -------------------------------------------------------------------------
-% Fixed geometry
+% Fixation (fix_cfg in cfg_start; static preview, no vigilance task):
+% idle marker on the menu, task marker (state A) over stimuli
 % -------------------------------------------------------------------------
-X1 = width/2  - fixSize;  X2 = width/2  + fixSize;
-Y1 = height/2 - fixSize;  Y2 = height/2 + fixSize;
-
-FixationImage_White  = 255 * ones(3,3,3);
-FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
+fixIdle  = FixationTask(fix_cfg, width, height);
+fixShown = FixationTask(fix_cfg, width, height);
+fixShown.start();
 BGimage = uint8(128 * ones(height, width));
 
 % -------------------------------------------------------------------------
@@ -105,10 +102,8 @@ try
     % --- Build checkerboard textures (once, procedurally - see makeCheq.m) ---
     [cheqTex, ~] = buildCheckerboardTextures(wptr, width, height, distance_cm, height_cm, cheq_cpd, nWedges);
 
-    % --- Background & fixation ---
+    % --- Background ---
     bgTex    = Screen('MakeTexture', wptr, BGimage);
-    fixWhite = Screen('MakeTexture', wptr, FixationImage_White);
-    fixGreen = Screen('MakeTexture', wptr, FixationImage_Green1);
 
     % -----------------------------------------------------------------------
     % Instruction screen
@@ -198,12 +193,12 @@ try
                 DrawFormattedText(wptr, ...
                     '1 Cheq   2 BW   3 Colour   4 Scotopic   5 PhotopicThick   |/-> ori   M motion   ESC quit', ...
                     'center', height*0.9, 200);
-                Screen('DrawTexture', wptr, fixWhite, [], [X1 Y1 X2 Y2]);
+                fixIdle.draw(wptr);
 
             case 1   % flashing checkerboard
                 phaseIndex = mod(floor(nowTime / reversalPeriod), 2) + 1;
                 Screen('DrawTexture', wptr, cheqTex(phaseIndex), [], [0 0 width height]);
-                Screen('DrawTexture', wptr, fixGreen, [], [X1 Y1 X2 Y2]);
+                fixShown.draw(wptr);
                 drawStatusText(wptr, height, sprintf('Checkerboard: %.2f cyc/deg radial, %d wedges, %.1f Hz reversal', cheq_cpd, nWedges, TF_hz));
 
             otherwise   % 2-5: drifting/static gratings
@@ -225,7 +220,7 @@ try
                 % motionOn == false: phaseIdx frozen (stationary condition)
 
                 Screen('DrawTexture', wptr, gratingTex(phaseIdx), [], [0 0 width height]);
-                Screen('DrawTexture', wptr, fixGreen, [], [X1 Y1 X2 Y2]);
+                fixShown.draw(wptr);
 
                 motionLabel = 'moving';
                 if ~motionOn, motionLabel = 'STATIONARY'; end

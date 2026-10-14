@@ -63,7 +63,6 @@ nCycles        = mt_cfg.nCycles;
 reversalTime   = mt_cfg.reversalTime;
 startDir       = mt_cfg.startDir;
 save_screen    = mt_cfg.save_screen;
-fixSize        = stim_cfg.fixSize;   % same fixation as colourProject
 
 % -------------------------------------------------------------------------
 % Keys
@@ -154,14 +153,9 @@ for step = 1:nPhaseSteps
 end
 
 % -------------------------------------------------------------------------
-% Fixation geometry & images (same as colourProject / bwNasrScotopic)
+% Fixation task (fix_cfg in cfg_start) & background
 % -------------------------------------------------------------------------
-X1 = width/2  - fixSize;  X2 = width/2  + fixSize;
-Y1 = height/2 - fixSize;  Y2 = height/2 + fixSize;
-
-FixationImage_White  = 255 * ones(3,3,3);
-FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
-FixationImage_Green2 = 180 * ones(3,3,3); FixationImage_Green2(:,:,[1 3]) = 0;
+fixTask = FixationTask(fix_cfg, width, height);
 BGimage = uint8(bgLum * ones(height, width));
 
 % -------------------------------------------------------------------------
@@ -181,15 +175,12 @@ try
         ringTex(step) = Screen('MakeTexture', wptr, ringImgs{step});
     end
 
-    % --- Background & fixation textures ---
-    bgTex     = Screen('MakeTexture', wptr, BGimage);
-    fixTex(1) = Screen('MakeTexture', wptr, FixationImage_Green1);
-    fixTex(2) = Screen('MakeTexture', wptr, FixationImage_Green2);
-    fixTex(3) = Screen('MakeTexture', wptr, FixationImage_White);
+    % --- Background texture ---
+    bgTex = Screen('MakeTexture', wptr, BGimage);
 
-    % --- Pre-trigger screen (white fixation on grey) ---
-    Screen('DrawTexture', wptr, bgTex,     [], [0 0 width height]);
-    Screen('DrawTexture', wptr, fixTex(3), [], [X1 Y1 X2 Y2]);
+    % --- Pre-trigger screen (idle fixation on grey) ---
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     % --- Wait for trigger ---
@@ -205,26 +196,20 @@ try
     LastResponseTime = toc;
     lastFrameTime    = toc;
 
-    % Post-trigger flip (green fixation)
-    Screen('DrawTexture', wptr, bgTex,     [], [0 0 width height]);
-    Screen('DrawTexture', wptr, fixTex(1), [], [X1 Y1 X2 Y2]);
+    % Post-trigger flip (fixation task starts)
+    fixTask.start();
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     % ---- Log structures ----
     LogData      = [];   % [elapsed, blockCode (0 rest, 1 static, 2 moving), phaseIdx, direction]
-    FixationData = [];   % [code, t]  1=green1 2=green2 3=response
     TriggerTime  = [];
     img_count    = 0;
 
     % Continuous ring position (real-time based, robust to frame rate)
     distanceDeg = 0;     % signed radial distance travelled, deg
     phaseIdx    = 1;
-
-    % Fixation colour cycling: every 4-10 s (time-based)
-    nextFixChange  = 4 + 6 * rand(1);
-    lastFixChange  = 0;
-    FixationColour = 0;
-    FixIndex       = 1;  % index into fixTex
 
     % -----------------------------------------------------------------------
     % Main loop
@@ -272,7 +257,8 @@ try
                 Screen('DrawTexture', wptr, ringTex(phaseIdx), [], [0 0 width height]);
         end
 
-        Screen('DrawTexture', wptr, fixTex(FixIndex), [], [X1 Y1 X2 Y2]);
+        fixTask.update(elapsed);
+        fixTask.draw(wptr);
         Screen('Flip', wptr);
 
         % --- Log ---
@@ -286,24 +272,11 @@ try
                 if KeyCode(escapeKey)
                     break
                 elseif KeyCode(DetectKey) && (toc - LastResponseTime > 0.3)
-                    FixationData = cat(1, FixationData, [3, toc - StartTime]);
+                    fixTask.respond(toc - StartTime);
                     LastResponseTime = toc;
                 elseif KeyCode(TriggerSign)
                     TriggerTime = [TriggerTime, toc - StartTime];
                 end
-            end
-        end
-
-        % --- Fixation colour cycling (vigilance task) ---
-        if elapsed - lastFixChange >= nextFixChange
-            lastFixChange = elapsed;
-            nextFixChange = 4 + 6 * rand(1);
-            if FixationColour == 0
-                FixationColour = 1; FixIndex = 2;
-                FixationData   = cat(1, FixationData, [1, toc - StartTime]);
-            else
-                FixationColour = 0; FixIndex = 1;
-                FixationData   = cat(1, FixationData, [2, toc - StartTime]);
             end
         end
 
@@ -344,9 +317,10 @@ try
         durations{n} = [BlockList(isThis).duration];
     end
 
+    FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
-         'BlockList', 'staticFirst', 'mt_cfg', 'px_per_deg', '-mat');
+         'BlockList', 'staticFirst', 'mt_cfg', 'fix_cfg', 'px_per_deg', '-mat');
     fprintf('Run saved to: %s\n', FileName);
 
     analysis_Stability(FileName);

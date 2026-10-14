@@ -32,6 +32,24 @@ px_per_cm = cfg.height / cfg.height_cm;
 cm_per_deg = 2 * cfg.distance_cm * tan(deg2rad(0.5));
 cfg.px_per_deg = px_per_cm * cm_per_deg;
 
+%% FIXATION TASK (FixationTask.m) - shared by all run scripts
+% Vigilance task: the central marker changes every minInterval-maxInterval s
+% and the participant presses 1 at each change.
+fix_cfg = struct();
+fix_cfg.style       = 'dot';      % 'dot' (central marker) or 'cross' (full-screen cross, corner to corner)
+fix_cfg.size        = 10;         % dot half-width, px (circle/triangle are matched in area to this square)
+fix_cfg.lineWidth   = 4;          % cross line width, px
+fix_cfg.task        = 'shape';   % 'colour' (light <-> dark green) or 'shape' (shapeA <-> shapeB)
+fix_cfg.dotShape    = 'square';   % marker shape in the colour task: 'square', 'circle' or 'triangle'
+fix_cfg.shapeA      = 'triangle'; % shape task: the two shapes alternated between
+fix_cfg.shapeB      = 'circle';
+fix_cfg.colourIdle  = [255 255 255]; % before the trigger
+fix_cfg.colourA     = [0 255 0];  % light green (also the cross colour in the shape task)
+fix_cfg.colourB     = [0 180 0];  % dark green
+fix_cfg.colourShape = [255 255 255];  % shape colour in the shape task
+fix_cfg.minInterval = 4;          % time between changes is uniform in [minInterval, maxInterval] s
+fix_cfg.maxInterval = 10;
+
 % findIso_cfg settings
 findIso_cfg = struct();
 findIso_cfg.nReps = 3; % 3
@@ -84,7 +102,6 @@ stim_cfg.save_screen=0;
 % 
 stim_cfg.nSteps=30;
 stim_cfg.colourCondLabels={'bw', 'colour'};
-stim_cfg.fixSize=10;
 stim_cfg.FadingTime=1; % 1s originally
 
 
@@ -109,9 +126,6 @@ cheq_cfg.BlockTime = 20;      % Duration of each ON (stimulus) block in seconds
 cheq_cfg.OffTime   = 45;      % Duration of each OFF (rest/fixation) block in seconds
 cheq_cfg.initial_blank=5;
 cheq_cfg.end_blank=5;
-
-% --- Fixation ---
-cheq_cfg.fixSize = 4;        % Fixation dot half-size in pixels
 
 % --- Misc display ---
 cheq_cfg.save_screen = 0;     % Set to 1 to save screenshots each frame

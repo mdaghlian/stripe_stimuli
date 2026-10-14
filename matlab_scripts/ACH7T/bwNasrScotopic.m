@@ -56,9 +56,6 @@ initial_blank = 16;    % blank duration at run onset, s
 nPhaseSteps   = 60;    % grating phase resolution (motion is driven by
                         % real elapsed time, not frame count, so this
                         % only sets how finely phase is quantised)
-fixSize       = 10;    % fixation square half-size, px (used when fixStyle = 'dot')
-fixStyle      = 'dot'; % 'dot' (small square) or 'cross' (big cross, corner to corner)
-fixLineWidth  = 4;     % fixation line width, px (used when fixStyle = 'cross')
 save_screen   = 0;     % set to 1 to save a screenshot every frame
 
 % Base grating orientations that actually need to be rendered. A grating
@@ -157,20 +154,10 @@ for o = 1:length(baseOriList)
 end
 
 % -------------------------------------------------------------------------
-% Fixation geometry & images
+% Fixation task (fix_cfg in cfg_start) & background
 % -------------------------------------------------------------------------
-X1 = width/2  - fixSize;  X2 = width/2  + fixSize;
-Y1 = height/2 - fixSize;  Y2 = height/2 + fixSize;
-
-FixationImage_White  = 255 * ones(3,3,3);
-FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
-FixationImage_Green2 = 180 * ones(3,3,3); FixationImage_Green2(:,:,[1 3]) = 0;
+fixTask = FixationTask(fix_cfg, width, height);
 BGimage = uint8(128 * ones(height, width));   % grey background (spatially uniform field)
-
-% RGB colour per fixation index (1=Green1, 2=Green2, 3=White), used to
-% draw the 'cross' fixation style with the same colour cycling as the
-% 'dot' style (which uses the textures above instead).
-fixColors = [0 255 0; 0 180 0; 255 255 255];
 
 % -------------------------------------------------------------------------
 % PTB
@@ -190,20 +177,12 @@ try
         end
     end
 
-    % --- Background & fixation textures ---
-    bgTex     = Screen('MakeTexture', wptr, BGimage);
-    fixTex(1) = Screen('MakeTexture', wptr, FixationImage_Green1);
-    fixTex(2) = Screen('MakeTexture', wptr, FixationImage_Green2);
-    fixTex(3) = Screen('MakeTexture', wptr, FixationImage_White);
+    % --- Background texture ---
+    bgTex = Screen('MakeTexture', wptr, BGimage);
 
-    % --- Pre-trigger screen (white fixation on grey) ---
-    Screen('DrawTexture', wptr, bgTex,    [], [0 0 width height]);
-    if strcmp(fixStyle, 'cross')
-        Screen('DrawLine', wptr, fixColors(3,:), 0, 0, width, height, fixLineWidth);
-        Screen('DrawLine', wptr, fixColors(3,:), 0, height, width, 0, fixLineWidth);
-    else
-        Screen('DrawTexture', wptr, fixTex(3),[], [X1 Y1 X2 Y2]);
-    end
+    % --- Pre-trigger screen (idle fixation on grey) ---
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     % --- Wait for trigger ---
@@ -219,31 +198,20 @@ try
     LastResponseTime  = toc;
     lastFrameTime     = toc;
 
-    % Post-trigger flip (green fixation)
-    Screen('DrawTexture', wptr, bgTex,    [], [0 0 width height]);
-    if strcmp(fixStyle, 'cross')
-        Screen('DrawLine', wptr, fixColors(1,:), 0, 0, width, height, fixLineWidth);
-        Screen('DrawLine', wptr, fixColors(1,:), 0, height, width, 0, fixLineWidth);
-    else
-        Screen('DrawTexture', wptr, fixTex(1),[], [X1 Y1 X2 Y2]);
-    end
+    % Post-trigger flip (fixation task starts)
+    fixTask.start();
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     % ---- Log structures ----
     LogData      = [];   % [elapsed, isStim, orientationDeg, phaseStep, direction]
-    FixationData = [];   % [code, t]  1=green1 2=green2 3=response
     TriggerTime  = [];
     img_count    = 0;
 
     % Continuous drift state (real-time based, robust to actual frame rate)
     distanceDeg  = 0;    % signed distance travelled along motion axis, deg
     phaseIdx     = 1;
-
-    % Fixation colour cycling
-    FixCnt         = 0;
-    FixRand        = randi(361) + 239;
-    FixationColour = 0;
-    FixIndex       = 1;   % index into fixTex
 
     % -----------------------------------------------------------------------
     % Main loop
@@ -289,12 +257,8 @@ try
             direction = 0;
         end
 
-        if strcmp(fixStyle, 'cross')
-            Screen('DrawLine', wptr, fixColors(FixIndex,:), 0, 0, width, height, fixLineWidth);
-            Screen('DrawLine', wptr, fixColors(FixIndex,:), 0, height, width, 0, fixLineWidth);
-        else
-            Screen('DrawTexture', wptr, fixTex(FixIndex), [], [X1 Y1 X2 Y2]);
-        end
+        fixTask.update(elapsed);
+        fixTask.draw(wptr);
         Screen('Flip', wptr);
 
         % --- Log ---
@@ -310,25 +274,11 @@ try
                 if KeyCode(escapeKey)
                     break
                 elseif KeyCode(DetectKey) && (toc - LastResponseTime > 0.3)
-                    FixationData = cat(1, FixationData, [3, toc - StartTime]);
+                    fixTask.respond(toc - StartTime);
                     LastResponseTime = toc;
                 elseif KeyCode(TriggerSign)
                     TriggerTime = [TriggerTime, toc - StartTime];
                 end
-            end
-        end
-
-        % --- Fixation colour cycling (vigilance task) ---
-        FixCnt = FixCnt + 1;
-        if FixCnt >= FixRand
-            FixCnt  = 0;
-            FixRand = randi(361) + 239;
-            if FixationColour == 0
-                FixationColour = 1; FixIndex = 2;
-                FixationData   = cat(1, FixationData, [1, toc - StartTime]);
-            else
-                FixationColour = 0; FixIndex = 1;
-                FixationData   = cat(1, FixationData, [2, toc - StartTime]);
             end
         end
 
@@ -379,10 +329,11 @@ try
         durations{end+1}  = [BlockList(isThisOri).duration];
     end
 
+    FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
          'oriSeq', 'BlockList', 'stim_cpd', 'speed_dps', 'reversalTime', ...
-         'px_per_deg', 'nPhaseSteps', '-mat');
+         'px_per_deg', 'nPhaseSteps', 'fix_cfg', '-mat');
     fprintf('Run saved to: %s\n', FileName);
 
     analysis_Stability(FileName);

@@ -25,7 +25,6 @@ nBlocks   = cheq_cfg.nBlocks;
 BlockTime = cheq_cfg.BlockTime;   % ON duration  (seconds)
 OffTime   = cheq_cfg.OffTime;     % OFF duration (seconds)
 TF_hz     = cheq_cfg.TF_hz;      % reversals per second
-fixSize   = cheq_cfg.fixSize;
 save_screen = cheq_cfg.save_screen;
 
 if isfield(cheq_cfg,'initial_blank')
@@ -97,17 +96,9 @@ end
 totalDuration = t;
 
 % -------------------------------------------------------------------------
-% Fixation geometry
+% Fixation task (fix_cfg in cfg_start) & background
 % -------------------------------------------------------------------------
-X1 = width/2  - fixSize;  X2 = width/2  + fixSize;
-Y1 = height/2 - fixSize;  Y2 = height/2 + fixSize;
-
-% -------------------------------------------------------------------------
-% Fixation images (3×3 patches drawn to a small rect)
-% -------------------------------------------------------------------------
-FixationImage_White  = 255 * ones(3,3,3);
-FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
-FixationImage_Green2 = 180 * ones(3,3,3); FixationImage_Green2(:,:,[1 3]) = 0;
+fixTask = FixationTask(fix_cfg, width, height);
 BGimage = uint8(128 * ones(height, width));   % grey background
 
 % 
@@ -140,15 +131,12 @@ try
     tex(1) = Screen('MakeTexture', wptr, img0, [], [], 1);  % phase 0
     tex(2) = Screen('MakeTexture', wptr, img1, [], [], 1);  % phase 1 (inverted)
 
-    % --- Background & fixation textures ---
-    bgTex    = Screen('MakeTexture', wptr, BGimage);
-    fixTex(1) = Screen('MakeTexture', wptr, FixationImage_Green1);
-    fixTex(2) = Screen('MakeTexture', wptr, FixationImage_Green2);
-    fixTex(3) = Screen('MakeTexture', wptr, FixationImage_White);
+    % --- Background texture ---
+    bgTex = Screen('MakeTexture', wptr, BGimage);
 
-    % --- Pre-trigger screen (white fixation on grey) ---
-    Screen('DrawTexture', wptr, bgTex,    [], [0 0 width height]);
-    Screen('DrawTexture', wptr, fixTex(3),[], [X1 Y1 X2 Y2]);
+    % --- Pre-trigger screen (idle fixation on grey) ---
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     % --- Wait for trigger ---
@@ -163,24 +151,18 @@ try
     LastKeyCheck  = toc;
     LastResponseTime = toc;
 
-    % Post-trigger flip (green fixation)
-    Screen('DrawTexture', wptr, bgTex,    [], [0 0 width height]);
-    Screen('DrawTexture', wptr, fixTex(1),[], [X1 Y1 X2 Y2]);
+    % Post-trigger flip (fixation task starts)
+    fixTask.start();
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     % ---- Log structures ----
     LogData      = [];   % [t blockType frameShown]
-    FixationData = [];   % [code t]  1=green1 2=green2 3=response
     rest_onset   = [];
     stim_onset   = [];
     TriggerTime  = [];
     img_count    = 0;
-
-    % Fixation colour cycling
-    FixCnt        = 0;
-    FixRand       = randi(361) + 239;
-    FixationColour = 0;
-    FixIndex       = 1;   % index into fixTex
 
     % -----------------------------------------------------------------------
     % Main loop
@@ -213,7 +195,8 @@ try
         end
         % In 'off' blocks: just grey background (already drawn)
 
-        Screen('DrawTexture', wptr, fixTex(FixIndex), [], [X1 Y1 X2 Y2]);
+        fixTask.update(elapsed);
+        fixTask.draw(wptr);
         Screen('Flip', wptr);
 
         % --- Log ---
@@ -233,25 +216,11 @@ try
                 if KeyCode(escapeKey)
                     break
                 elseif KeyCode(DetectKey) && (toc - LastResponseTime > 0.3)
-                    FixationData = cat(1, FixationData, [3, toc - StartTime]);
+                    fixTask.respond(toc - StartTime);
                     LastResponseTime = toc;
                 elseif KeyCode(TriggerSign)
                     TriggerTime = [TriggerTime, toc - StartTime];
                 end
-            end
-        end
-
-        % --- Fixation colour cycling ---
-        FixCnt = FixCnt + 1;
-        if FixCnt >= FixRand
-            FixCnt  = 0;
-            FixRand = randi(361) + 239;
-            if FixationColour == 0
-                FixationColour = 1; FixIndex = 2;
-                FixationData   = cat(1, FixationData, [1, toc - StartTime]);
-            else
-                FixationColour = 0; FixIndex = 1;
-                FixationData   = cat(1, FixationData, [2, toc - StartTime]);
             end
         end
 
@@ -298,8 +267,9 @@ try
 
     durations = {rest_durations, stim_durations};
 
+    FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
-    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', '-mat');
+    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'fix_cfg', '-mat');
     fprintf('Run saved to: %s\n', FileName);
 
 catch err

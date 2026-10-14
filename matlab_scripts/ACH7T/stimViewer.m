@@ -22,16 +22,11 @@ height   = cfg.height;
 % --- Checkerboard params ---
 TF_hz        = cheq_cfg.TF_hz;          % reversal rate (Hz)
 reversalPeriod = 1 / TF_hz;
-fixSize_cheq = cheq_cfg.fixSize;
 
 % --- Grating params ---
 nSteps           = stim_cfg.nSteps;
 orientationList  = stim_cfg.thetaList;
 colourCondLabels = stim_cfg.colourCondLabels;  % e.g. {'bw','colour'}
-fixSize_grat     = stim_cfg.fixSize;
-
-% Use the same fixSize for everything (pick one or make consistent)
-fixSize = fixSize_cheq;
 
 % --- Paths ---
 dir_base     = cfg.dir_base;
@@ -51,16 +46,12 @@ key2      = KbName('2@');
 key3      = KbName('3#');
 
 % -------------------------------------------------------------------------
-% Fixed geometry
+% Fixation (fix_cfg in cfg_start; static preview, no vigilance task):
+% idle marker on the menu, task marker (state A) over stimuli
 % -------------------------------------------------------------------------
-X1 = width/2  - fixSize;  X2 = width/2  + fixSize;
-Y1 = height/2 - fixSize;  Y2 = height/2 + fixSize;
-
-% -------------------------------------------------------------------------
-% Fixation patches
-% -------------------------------------------------------------------------
-FixationImage_White  = 255 * ones(3,3,3);
-FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
+fixIdle  = FixationTask(fix_cfg, width, height);
+fixShown = FixationTask(fix_cfg, width, height);
+fixShown.start();
 BGimage = uint8(128 * ones(height, width));
 
 % -------------------------------------------------------------------------
@@ -92,10 +83,8 @@ try
         end
     end
 
-    % --- Background & fixation ---
+    % --- Background ---
     bgTex    = Screen('MakeTexture', wptr, BGimage);
-    fixWhite = Screen('MakeTexture', wptr, FixationImage_White);
-    fixGreen = Screen('MakeTexture', wptr, FixationImage_Green1);
 
     % -----------------------------------------------------------------------
     % Instruction screen
@@ -147,12 +136,12 @@ try
                 DrawFormattedText(wptr, ...
                     '1 = Checkerboard   2 = B&W grating   3 = Colour grating   ESC = quit', ...
                     'center', height*0.85, 200);
-                Screen('DrawTexture', wptr, fixWhite, [], [X1 Y1 X2 Y2]);
+                fixIdle.draw(wptr);
 
             case 1   % flashing checkerboard
                 phaseIndex = mod(floor(elapsed / reversalPeriod), 2) + 1;
                 Screen('DrawTexture', wptr, cheqTex(phaseIndex), [], [0 0 width height]);
-                Screen('DrawTexture', wptr, fixGreen, [], [X1 Y1 X2 Y2]);
+                fixShown.draw(wptr);
 
             case 2   % drifting B&W grating  (colourCondLabels{1})
                 % Advance frame counter at ~drift rate
@@ -163,7 +152,7 @@ try
                     if cnt < 1,      cnt = nSteps; end
                 end
                 Screen('DrawTexture', wptr, gratingTex(1, cnt), [], [0 0 width height]);
-                Screen('DrawTexture', wptr, fixGreen, [], [X1 Y1 X2 Y2]);
+                fixShown.draw(wptr);
 
             case 3   % colour grating  (last colourCondLabels entry)
                 if elapsed - lastDriftFlip >= driftPeriod
@@ -173,7 +162,7 @@ try
                     if cnt < 1,      cnt = nSteps; end
                 end
                 Screen('DrawTexture', wptr, gratingTex(end, cnt), [], [0 0 width height]);
-                Screen('DrawTexture', wptr, fixGreen, [], [X1 Y1 X2 Y2]);
+                fixShown.draw(wptr);
         end
 
         Screen('Flip', wptr);

@@ -28,7 +28,6 @@ save_screen      = stim_cfg.save_screen;
 nSteps           = stim_cfg.nSteps;
 orientationList  = stim_cfg.thetaList;
 colourCondLabels = stim_cfg.colourCondLabels;
-fixSize          = stim_cfg.fixSize;
 
 % condition_list defines the order of stimulus types and rest periods.
 % Each non-rest entry will be expanded into nOriPerStim * 2 consecutive
@@ -117,15 +116,8 @@ nBlocks = numel(expanded_list);
 %==========================================================================
 % FIXED PARAMETERS
 %==========================================================================
-X1 = width/2  - fixSize;
-X2 = width/2  + fixSize;
-Y1 = height/2 - fixSize;
-Y2 = height/2 + fixSize;
-
-% Fixation colour images
-FixationImage_White  = 255 * ones(3,3,3);
-FixationImage_Green1 = 255 * ones(3,3,3); FixationImage_Green1(:,:,[1 3]) = 0;
-FixationImage_Green2 = 180 * ones(3,3,3); FixationImage_Green2(:,:,[1 3]) = 0;
+% Fixation task (fix_cfg in cfg_start)
+fixTask = FixationTask(fix_cfg, width, height);
 Image = uint8(128 * ones(height, width));  % grey background
 
 %==========================================================================
@@ -162,17 +154,14 @@ try
         end
     end
 
-    % Load background and fixation textures
+    % Load background texture
     textureIndex(1) = Screen('MakeTexture', wptr, Image);
-    textureIndex(2) = Screen('MakeTexture', wptr, FixationImage_Green1);
-    textureIndex(3) = Screen('MakeTexture', wptr, FixationImage_Green2);
-    textureIndex(4) = Screen('MakeTexture', wptr, FixationImage_White);
 
     %----------------------------------------------------------------------
-    % PRE-TRIGGER SCREEN (white fixation)
+    % PRE-TRIGGER SCREEN (idle fixation)
     %----------------------------------------------------------------------
     Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
-    Screen('DrawTexture', wptr, textureIndex(4), [], [X1 Y1 X2 Y2]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     [~,~,KeyCode] = KbCheck;
@@ -182,8 +171,9 @@ try
 
     tic;
 
+    fixTask.start();
     Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
-    Screen('DrawTexture', wptr, textureIndex(2), [], [X1 Y1 X2 Y2]);
+    fixTask.draw(wptr);
     Screen('Flip', wptr);
 
     StartTime        = toc;
@@ -197,13 +187,8 @@ try
     onsets        = cell(1, numel(allCondLabels));
 
     LogData      = [];
-    FixationData = [];
     TriggerTime  = [];
 
-    FixationColour = 0;
-    FixIndex       = 3;
-    FixCnt         = 0;
-    FixRand        = 0;
     img_count      = 0;
     cnt            = 1;   % current grating frame step (persists across half-blocks)
     escapePressed  = false;
@@ -258,9 +243,11 @@ try
             tNow     = toc - StartTime;
             tInBlock = tNow - blockStart;
 
+            fixTask.update(tNow);
+
             if isRestBlock
                 Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
-                Screen('DrawTexture', wptr, textureIndex(FixIndex), [], [X1 Y1 X2 Y2]);
+                fixTask.draw(wptr);
                 alphaImg = 0;
 
             else
@@ -290,7 +277,7 @@ try
 
                 Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
                 Screen('DrawTexture', wptr, gratingTexture(imgIndex, cnt), [], [0 0 width height], [], [], alphaImg);
-                Screen('DrawTexture', wptr, textureIndex(FixIndex), [], [X1 Y1 X2 Y2]);
+                fixTask.draw(wptr);
             end
 
             LogData = cat(1, LogData, [tNow, b, imgIndex, cnt, alphaImg, dirCode*(~isRestBlock)]);
@@ -305,29 +292,13 @@ try
                         escapePressed = true;
                         break;
                     elseif KeyCode(DetectKey) && toc - LastResponseTime > 0.3
-                        FixationData     = cat(1, FixationData, [3, tNow]);
+                        fixTask.respond(tNow);
                         LastResponseTime = toc;
                     elseif KeyCode(TriggerSign)
                         TriggerTime = [TriggerTime, tNow];
                     end
                 end
             end
-
-            % Fixation spot colour randomisation (~4-10 s at 60 Hz)
-            if FixCnt == FixRand
-                FixCnt  = 0;
-                FixRand = randi(361) + 239;
-                if FixationColour == 1
-                    FixationColour = 0;
-                    FixIndex       = 2;
-                    FixationData   = cat(1, FixationData, [2, tNow]);
-                else
-                    FixationColour = 1;
-                    FixIndex       = 3;
-                    FixationData   = cat(1, FixationData, [1, tNow]);
-                end
-            end
-            FixCnt = FixCnt + 1;
 
             % Optional screenshot saving
             if save_screen ~= 0
@@ -374,9 +345,10 @@ try
         end
     end
 
+    FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'],      'FixationData', 'LogData', 'expanded_list', ...
-                                  'ori_seq', 'dir_seq', 'TriggerTime', '-mat');
+                                  'ori_seq', 'dir_seq', 'TriggerTime', 'fix_cfg', '-mat');
     analysis_Stability(FileName);
     analysis_Fixation(FileName);
 
