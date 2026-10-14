@@ -7,7 +7,7 @@ function stimViewerLive()
 %   Unlike stimViewer.m (which loads pre-rendered PNGs from a specific
 %   participant's stimuli folder), this version builds every stimulus
 %   procedurally at runtime, using the same maths as makeCheq.m /
-%   makeStimuli.m / bwNasrScotopic.m / bwNasrPhotopicThick.m. Nothing is
+%   makeStimuli.m / bwNasrScotopic.m . Nothing is
 %   read from or written to disk, so it can be run standalone, e.g. for
 %   quickly sanity-checking display geometry or a new parameter set.
 %
@@ -16,11 +16,8 @@ function stimViewerLive()
 %     2        -> drifting B&W grating          (stim_cfg.stim_cpd, e.g. 0.4 cyc/deg)
 %     3        -> drifting colour grating        (uncalibrated preview - NOT isoluminance corrected)
 %     4        -> Nasr scotopic-style grating    (0.2 cyc/deg, 4 deg/s, direction reverses every 6 s)
-%     5        -> Nasr photopic-thick grating    (0.1 cyc/deg, 8 deg/s - see bwNasrPhotopicThick.m)
 %     Left/Right arrows -> cycle grating orientation (modes 2-5)
 %     M        -> toggle motion on/off (moving vs. stationary - the actual
-%                 contrast bwNasrPhotopicThick.m uses to target thick-type
-%                 columns; handy for previewing that condition directly)
 %     ESCAPE   -> quit
 %
 %   No MRI triggers, no logging, no logfiles, no participant folders.
@@ -56,16 +53,15 @@ nPhaseSteps = 40;              % phase resolution for the live viewer
 baseOriList = [0 45 90 135];   % cycled with left/right arrows
 
 % Mode presets: cyc/deg, speed (deg/s), colour flag, label.
-% Modes 2/3 match the standard colourProject grating; modes 4/5
-% match bwNasrScotopic.m / bwNasrPhotopicThick.m respectively.
-modeCPD    = containers.Map({2,3,4,5}, {stim_cfg.stim_cpd, stim_cfg.stim_cpd, 0.2, 0.1});
-modeSpeed  = containers.Map({2,3,4,5}, {4, 4, 4, 8});
-modeColour = containers.Map({2,3,4,5}, {false, true, false, false});
-modeLabel  = containers.Map({2,3,4,5}, { ...
+% Modes 2/3 match the standard colourProject grating; mode 4
+% match bwNasrScotopic.m
+modeCPD    = containers.Map({2,3,4}, {stim_cfg.stim_cpd, stim_cfg.stim_cpd, 0.2});
+modeSpeed  = containers.Map({2,3,4}, {4, 4, 4});
+modeColour = containers.Map({2,3,4}, {false, true, false});
+modeLabel  = containers.Map({2,3,4}, { ...
     sprintf('B&W grating (%.2f cyc/deg)', stim_cfg.stim_cpd), ...
     sprintf('Colour grating - UNCALIBRATED preview (%.2f cyc/deg)', stim_cfg.stim_cpd), ...
-    'Nasr scotopic-style (0.2 cyc/deg, 4 deg/s, auto-reverses every 6 s)', ...
-    'Nasr photopic-thick (0.1 cyc/deg, 8 deg/s) - press M for moving/stationary'});
+    'Nasr scotopic-style (0.2 cyc/deg, 4 deg/s, auto-reverses every 6 s)'});
 
 % -------------------------------------------------------------------------
 % Keys
@@ -112,7 +108,7 @@ try
     Screen('TextSize', wptr, 32);
     DrawFormattedText(wptr, ...
         ['1 = Checkerboard\n2 = B&W grating\n3 = Colour grating (uncalibrated)\n' ...
-         '4 = Nasr scotopic-style\n5 = Nasr photopic-thick\n\n' ...
+         '4 = Nasr scotopic-style\n\n' ...
          'Left/Right = orientation   M = toggle motion   ESC = quit'], ...
         'center', 'center', 255);
     Screen('Flip', wptr);
@@ -191,7 +187,7 @@ try
             case 0   % idle
                 Screen('TextSize', wptr, 26);
                 DrawFormattedText(wptr, ...
-                    '1 Cheq   2 BW   3 Colour   4 Scotopic   5 PhotopicThick   |/-> ori   M motion   ESC quit', ...
+                    '1 Cheq   2 BW   3 Colour   4 Scotopic   |/-> ori   M motion   ESC quit', ...
                     'center', height*0.9, 200);
                 fixIdle.draw(wptr);
 
