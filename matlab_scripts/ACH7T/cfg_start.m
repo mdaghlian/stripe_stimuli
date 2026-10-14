@@ -3,7 +3,7 @@ cfg = struct();
 
 % Paths 
 cfg.PTB_dir = '/Users/marcusdaghlian/programs/experiments/Psychtoolbox';
-cfg.dir_base = '/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/color/logs';
+cfg.dir_base = '/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/ACH7T/logs';
 
 cfg.eye_track = 0;
 cfg.eye_calib = 0;
