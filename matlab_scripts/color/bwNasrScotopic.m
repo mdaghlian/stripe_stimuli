@@ -24,6 +24,13 @@ if ~exist('name_subj', 'var'), name_subj = 'TestSubj'; end
 if ~exist('name_sess',  'var'), name_sess  = 'TestSess'; end
 if ~exist('name_run',   'var'), name_run   = 1;          end
 
+% name_run may be passed as text (e.g. '1') - sprintf('%d', ...) below
+% would silently reinterpret a char array as ASCII codes (e.g. '1' -> 49)
+% rather than erroring, so normalise to numeric here.
+if ischar(name_run) || isstring(name_run)
+    name_run = str2double(name_run);
+end
+
 % -------------------------------------------------------------------------
 % Unpack display config (from cfg_start)
 % -------------------------------------------------------------------------
