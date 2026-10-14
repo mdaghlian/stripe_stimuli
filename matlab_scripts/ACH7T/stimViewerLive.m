@@ -56,7 +56,7 @@ nPhaseSteps = 40;              % phase resolution for the live viewer
 baseOriList = [0 45 90 135];   % cycled with left/right arrows
 
 % Mode presets: cyc/deg, speed (deg/s), colour flag, label.
-% Modes 2/3 match the standard bwProject/colourProject grating; modes 4/5
+% Modes 2/3 match the standard colourProject grating; modes 4/5
 % match bwNasrScotopic.m / bwNasrPhotopicThick.m respectively.
 modeCPD    = containers.Map({2,3,4,5}, {stim_cfg.stim_cpd, stim_cfg.stim_cpd, 0.2, 0.1});
 modeSpeed  = containers.Map({2,3,4,5}, {4, 4, 4, 8});

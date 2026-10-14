@@ -173,16 +173,3 @@ for t=1:length(thetaList)
         
     end
 end
-
-
-
-pathfile_bw=[dir_base fs name_subj fs 'bw' fs name_sess fs ];
-% GET VALUES FROM BLUE ISOLUMINANCE
-
-if ~exist(pathfile_bw, 'dir')
-    mkdir(pathfile_bw)
-end
-
-pathfile_bw_stim = [dir_base fs name_subj fs 'bw' fs name_sess fs 'stimuli' ];
-pathfile_col_stim = [dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli' ];
-copyfile(pathfile_col_stim, pathfile_bw_stim)

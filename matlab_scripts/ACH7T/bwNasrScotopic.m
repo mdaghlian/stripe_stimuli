@@ -12,7 +12,7 @@ function bwNasrScotopic(name_subj, name_sess, name_run)
 %   followed by 7 blocks of 16 s stimulation, each block followed by
 %   16 s blank. Total run duration = 16 + 7*(16+16) = 240 s.
 %
-%   Follows the same conventions as bwProject.m / cheqProject.m in this
+%   Follows the same conventions as colourProject.m / cheqProject.m in this
 %   folder (cfg_start for display geometry, PTB draw loop, fixation
 %   vigilance task, SPM-style Cond.mat + raw logfile .mat output).
 
