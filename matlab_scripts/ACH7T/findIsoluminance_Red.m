@@ -133,13 +133,18 @@ try
     Screen('LoadNormalizedGammaTable',screenid,InvGammaTable);%load InvGammaTable immediately into graphics card for gamma correction
     
     % open screen window with imaging pipeline setup
-    Screen('Preference', 'SkipSyncTests', 1); %need to remove
+    % Screen('Preference', 'SkipSyncTests', 1); %need to remove
     wptr=PsychImaging('OpenWindow',screenid);
     ListenChar(2)%suppress any keypresses to Octave command window
     HideCursor;   
     [offwptr,screenRect]=Screen('OpenOffscreenWindow',wptr,0);%open offscreen window into which we draw the "index colour image" which defines the appearance of the "colour wheel"
     flipinterval=Screen('GetFlipInterval',wptr); 
     ASSUMEDREFRESHRATE=1/flipinterval%assumed refresh rate
+    % check refresh rate (flicker frequency = refresh/2)
+    if abs(ASSUMEDREFRESHRATE-findIso_cfg.expectedHz)>findIso_cfg.toleranceHz
+        error('Measured refresh rate is %.1f Hz but %d Hz is expected (flicker = refresh/2). Change the display mode or findIso_cfg.expectedHz.', ...
+            ASSUMEDREFRESHRATE, findIso_cfg.expectedHz);
+    end
     
     % start screen (wait for key press)
     Screen('FillRect',wptr,[0 0 0],screenRect);
