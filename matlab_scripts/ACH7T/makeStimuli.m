@@ -95,10 +95,8 @@ X=1:width;%X is a vector from 1 to width
 Y=1:height;  
 [Xm,Ym]=meshgrid(X,Y);%2D matrices
 R=sqrt(((Xm-width/2).^2)+((Ym-height/2).^2));
-R=log(R);
+R=log(R/cfg.image_frac);% rescale to full-screen px (fitting is done on full screen) before taking log
 R(isinf(R))=0;%to discard log(0)
-
-R = R * (1/cfg.image_frac); % Rescale because the fitting is done on full screen 
 
 % CALCULATE WEIGHTINGS
 fxn1=polyval(bwParams,R); 
