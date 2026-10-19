@@ -163,8 +163,6 @@ try
 
     % ---- Log structures ----
     LogData      = [];   % [t blockType frameShown]
-    rest_onset   = [];
-    stim_onset   = [];
     TriggerTime  = [];
     img_count    = 0;
 
@@ -255,9 +253,6 @@ try
     % -----------------------------------------------------------------------
     % Compute onset/duration arrays for SPM-style saving
     % -----------------------------------------------------------------------
-    rest_onset  = blockOnsets([BlockList.type] == 'o');   % 'off' blocks
-    stim_onset  = blockOnsets([BlockList.type] == 'n');   % 'on'  blocks
-
     % Logical arrays for indexing
     isOffBlock = strcmp({BlockList.type}, 'off');
     isOnBlock  = strcmp({BlockList.type}, 'on');
