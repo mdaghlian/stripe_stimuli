@@ -70,6 +70,7 @@ stim_params.spatialFreq_cpp = spatialFreq; % cycles per pixel
 stim_params.timestamp = datetime('now');
 stim_params.bwParams = bwParams;
 stim_params.redParams = redParams;
+stim_params.eccClamp_px = findIso_cfg.ecc_mean([1 end])*cfg.height; % full-screen px; weights constant outside
 % Generate a filename (example uses a subject ID if available in cfg)
 if isfield(cfg, 'subjectID')
     filename = sprintf('stim_meta_%s_%s.mat', cfg.subjectID, datestr(now, 'yyyy-mm-dd_HHMM'));
@@ -95,8 +96,15 @@ X=1:width;%X is a vector from 1 to width
 Y=1:height;  
 [Xm,Ym]=meshgrid(X,Y);%2D matrices
 R=sqrt(((Xm-width/2).^2)+((Ym-height/2).^2));
-R=log(R/cfg.image_frac);% rescale to full-screen px (fitting is done on full screen) before taking log
-R(isinf(R))=0;%to discard log(0)
+R=R/cfg.image_frac;% rescale to full-screen px (fitting is done on full screen)
+% Clamp to the calibrated range before taking the log. The fits are
+% linear in log(R) through the band centres; evaluating them towards
+% R = 1 px drives the weights down (dark spot at the centre), and beyond
+% the outer band they are extrapolated too. Inside the innermost and
+% outside the outermost band centre the weights are held constant.
+R_min=findIso_cfg.ecc_mean(1)*cfg.height;
+R_max=findIso_cfg.ecc_mean(end)*cfg.height;
+R=log(min(max(R,R_min),R_max));
 
 % CALCULATE WEIGHTINGS
 fxn1=polyval(bwParams,R); 
