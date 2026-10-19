@@ -277,14 +277,10 @@ try
         Eyelink('StartRecording');
     end
     
-    % wait for trigger command
-    [~,~,KeyCode]=KbCheck; 
-    while ~KeyCode(TriggerSign)
-        [~,~,KeyCode]=KbCheck;
-    end
-    
-    % start time measurement (in seconds)
-    tic;
+    % wait for trigger command (key queue: logs every trigger and response
+    % with its own GetSecs time; see ScannerKeys.m)
+    keys=ScannerKeys(TriggerSign,DetectKey,escapeKey,cfg.kbIndex);
+    t0=keys.waitForTrigger();%GetSecs time of the first trigger = time zero of the run
     
     % flip start screen after trigger (fixation task starts)
     fixTask.start();
@@ -292,11 +288,8 @@ try
     fixTask.draw(wptr);
     Screen('Flip',wptr);
     
-    % first time query
-    StartTime=toc;
-    t0=GetSecs;%same instant on PTB's clock, for Flip timestamps
-    LastResponseTime=toc;
-    LastKeyCheck=toc;
+    % all run times are GetSecs-StartTime, i.e. s since the first trigger
+    StartTime=t0;
     
     % experiment 
     cnt=1;
@@ -315,49 +308,48 @@ try
     %columns: [t blockCode phaseStep alpha flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData=nan(ceil((length(BlockSeq)+10)*240),5);
     nLog=0;
-    TriggerTime=[];
     img_count=0;
     
-    while toc-StartTime<length(BlockSeq)-nPad%because of the appended zeros, we subtract nPad here                                 
-        fixTask.update(toc-StartTime);
-        if (BlockSeq(floor(toc-StartTime+1))==0) 
+    while GetSecs-StartTime<length(BlockSeq)-nPad%because of the appended zeros, we subtract nPad here                                 
+        fixTask.update(GetSecs-StartTime);
+        if (BlockSeq(floor(GetSecs-StartTime+1))==0) 
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
             fixTask.draw(wptr);
             if OnsetPos==0
                 OnsetPos=1;
-                rest_onset=[rest_onset toc-StartTime];
+                rest_onset=[rest_onset GetSecs-StartTime];
             end
         else            
             OnsetPos=0;            
             % fade out once the block ends within FadingTime (second half of a block, next block or rest starts at t+FadingTime)
-            if (mod(BlockSeq(floor(toc-StartTime+1)),2)==1 && mod(BlockSeq(floor(toc-StartTime+1+FadingTime)),2)==0)
+            if (mod(BlockSeq(floor(GetSecs-StartTime+1)),2)==1 && mod(BlockSeq(floor(GetSecs-StartTime+1+FadingTime)),2)==0)
                 if FadeNeg==0
-                    fadeStart=toc-StartTime;
+                    fadeStart=GetSecs-StartTime;
                     FadeNeg=1;
                     FadePos=0;
                 end
-                alphaImg=1-((toc-StartTime)-fadeStart)/FadingTime;
+                alphaImg=1-((GetSecs-StartTime)-fadeStart)/FadingTime;
                 if alphaImg<0
                     alphaImg=0;
                 end         
             else 
                 if FadePos==0
-                    if BlockSeq(floor(toc-StartTime+1))<=nConditions%save onset times (BW conditions 1..nConditions/2 have codes 2..nConditions)
-                        bw_onset=[bw_onset toc-StartTime];
+                    if BlockSeq(floor(GetSecs-StartTime+1))<=nConditions%save onset times (BW conditions 1..nConditions/2 have codes 2..nConditions)
+                        bw_onset=[bw_onset GetSecs-StartTime];
                     else
-                        colour_onset=[colour_onset toc-StartTime];
+                        colour_onset=[colour_onset GetSecs-StartTime];
                     end
-                    fadeStart=toc-StartTime;
+                    fadeStart=GetSecs-StartTime;
                     FadeNeg=0;
                     FadePos=1;
                 end 
-                alphaImg=((toc-StartTime)-fadeStart)/FadingTime;
+                alphaImg=((GetSecs-StartTime)-fadeStart)/FadingTime;
                 if alphaImg>1
                    alphaImg=1;
                 end
             end
-            imgIndex=ceil(BlockSeq(floor(toc-StartTime+1))/2);
-            if BlockSeqDir(floor(toc-StartTime+1))>0   
+            imgIndex=ceil(BlockSeq(floor(GetSecs-StartTime+1))/2);
+            if BlockSeqDir(floor(GetSecs-StartTime+1))>0   
                 cnt=cnt-1;
                 if cnt<1
                     cnt=nSteps;
@@ -372,25 +364,18 @@ try
             Screen('DrawTexture',wptr,gratingTexture(imgIndex,cnt),[],[0 0 width height],[],[],alphaImg);
             fixTask.draw(wptr);
         end
-        tempLog=[toc-StartTime BlockSeq(floor(toc-StartTime)+1) cnt alphaImg];
+        tempLog=[GetSecs-StartTime BlockSeq(floor(GetSecs-StartTime)+1) cnt alphaImg];
         [~,onsetT]=Screen('Flip',wptr);
         nLog=nLog+1;
         LogData(nLog,:)=[tempLog onsetT-t0];
         
-        % check key presses
-        if toc-LastKeyCheck>0.2
-            LastKeyCheck=toc;
-            [KeyIsDown,~,KeyCode]=KbCheck;
-            if KeyIsDown==1
-                if KeyCode(escapeKey)
-                    break
-                elseif (KeyCode(DetectKey) && toc-LastResponseTime>0.3)
-                    fixTask.respond(toc-StartTime);
-                    LastResponseTime=toc;
-                elseif KeyCode(TriggerSign)
-                    TriggerTime=[TriggerTime toc-StartTime];
-                end
-            end
+        % key presses since the last frame (triggers are stored in keys)
+        [respTimes,escapePressed]=keys.poll(t0);
+        for r=respTimes
+            fixTask.respond(r);
+        end
+        if escapePressed
+            break
         end
         
         % save screen shots
@@ -412,11 +397,14 @@ try
         % collect eye tracking sample
         if cfg.eye_track
             evt = Eyelink('NewestFloatSample');
-            EyelinkData = cat(1, EyelinkData, [toc-StartTime evt.gx(1) evt.gy(1) evt.pa(1)]);
+            EyelinkData = cat(1, EyelinkData, [GetSecs-StartTime evt.gx(1) evt.gy(1) evt.pa(1)]);
         end
     end
     
     LogData=LogData(1:nLog,:);
+    keys.release();
+    TriggerTime=keys.triggerTimes(t0);%s since the first trigger (first = 0)
+    keys.report(t0,length(BlockSeq)-nPad);
     
     % end screen
     Screen('FillRect',wptr,[0 0 0],[0 0 width height]);
@@ -470,6 +458,7 @@ try
     analysis_Stability(FileName);
     analysis_Fixation(FileName);
 catch err
+    if exist('keys','var'), try, keys.release(); catch, end, end
     Screen('CloseAll');
     ShowCursor;
     if cfg.eye_track

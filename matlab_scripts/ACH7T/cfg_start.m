@@ -5,6 +5,11 @@ cfg = struct();
 cfg.PTB_dir = '/Users/marcusdaghlian/programs/experiments/Psychtoolbox';
 cfg.dir_base = '/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/ACH7T/logs';
 
+% Keyboard device for scanner triggers + responses (ScannerKeys / KbQueue).
+% [] = PTB default keyboard. If the FIL trigger box appears as a separate
+% keyboard, set its index here (from GetKeyboardIndices); check once at the scanner.
+cfg.kbIndex = [];
+
 cfg.eye_track = 0;
 cfg.eye_calib = 0;
 % Screen settings

@@ -178,22 +178,17 @@ try
     fixTask.draw(wptr);
     Screen('Flip', wptr);
 
-    [~,~,KeyCode] = KbCheck;
-    while ~KeyCode(TriggerSign)
-        [~,~,KeyCode] = KbCheck;
-    end
-
-    tic;
+    % Key queue: logs every trigger and response with its own GetSecs time
+    % (see ScannerKeys.m). t0 = first trigger = time zero of the run.
+    keys = ScannerKeys(TriggerSign, DetectKey, escapeKey, cfg.kbIndex);
+    t0   = keys.waitForTrigger();
 
     fixTask.start();
     Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
     fixTask.draw(wptr);
     Screen('Flip', wptr);
 
-    StartTime        = toc;
-    t0               = GetSecs;   % same instant on PTB's clock, for Flip timestamps
-    LastResponseTime = toc;
-    LastKeyCheck     = toc;
+    StartTime        = t0;   % all run times are GetSecs - StartTime (s since trigger 1)
 
     %----------------------------------------------------------------------
     % INITIALISE LOG / STATE VARIABLES
@@ -207,7 +202,6 @@ try
     runDur      = sum(isRestEntry)*DelayTime + sum(~isRestEntry)*BlockTime;
     LogData     = nan(ceil((runDur + 10) * 240), 7);
     nLog        = 0;
-    TriggerTime  = [];
 
     img_count      = 0;
     cnt            = 1;   % current grating frame step (persists across half-blocks)
@@ -228,7 +222,7 @@ try
         blockDur = BlockTime;
         if isRestBlock, blockDur = DelayTime; end
 
-        blockStart = toc - StartTime;
+        blockStart = GetSecs - StartTime;
 
         % Log onset on rest blocks and on the forward half of each stim pair
         if isRestBlock || (~isnan(dir_seq(b)) && dir_seq(b) == +1)
@@ -261,9 +255,9 @@ try
         %------------------------------------------------------------------
         % INNER FRAME LOOP
         %------------------------------------------------------------------
-        while (toc - StartTime) - blockStart < blockDur
+        while (GetSecs - StartTime) - blockStart < blockDur
 
-            tNow     = toc - StartTime;
+            tNow     = GetSecs - StartTime;
             tInBlock = tNow - blockStart;
 
             fixTask.update(tNow);
@@ -307,21 +301,13 @@ try
             nLog = nLog + 1;
             LogData(nLog, :) = [tNow, b, imgIndex, cnt, alphaImg, dirCode*(~isRestBlock), onsetT - t0];
 
-            % Key check (throttled to every 200 ms)
-            if toc - LastKeyCheck > 0.2
-                LastKeyCheck = toc;
-                [KeyIsDown, ~, KeyCode] = KbCheck;
-                if KeyIsDown
-                    if KeyCode(escapeKey)
-                        escapePressed = true;
-                        break;
-                    elseif KeyCode(DetectKey) && toc - LastResponseTime > 0.3
-                        fixTask.respond(tNow);
-                        LastResponseTime = toc;
-                    elseif KeyCode(TriggerSign)
-                        TriggerTime = [TriggerTime, tNow];
-                    end
-                end
+            % Key presses since the last frame (triggers are stored in keys)
+            [respTimes, escapePressed] = keys.poll(t0);
+            for r = respTimes
+                fixTask.respond(r);
+            end
+            if escapePressed
+                break;
             end
 
             % Optional screenshot saving
@@ -339,6 +325,9 @@ try
 
     end  % end block loop
     LogData = LogData(1:nLog, :);
+    keys.release();
+    TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
+    keys.report(t0, runDur);
 
     %----------------------------------------------------------------------
     % END SCREEN
@@ -378,6 +367,7 @@ try
     analysis_Fixation(FileName);
 
 catch err
+    if exist('keys','var'), try, keys.release(); catch, end, end
     Screen('CloseAll');
     ShowCursor;
     rethrow(err);

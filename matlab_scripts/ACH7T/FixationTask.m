@@ -97,7 +97,10 @@ classdef FixationTask < handle
         end
 
         function respond(obj, t)
-            obj.data = cat(1, obj.data, [3, t]);
+            % Responses come from a key queue with their own press time,
+            % which can precede a change already logged this frame; keep
+            % data in time order (analysis_Fixation relies on the order).
+            obj.data = sortrows(cat(1, obj.data, [3, t]), 2);
         end
 
         function draw(obj, wptr)

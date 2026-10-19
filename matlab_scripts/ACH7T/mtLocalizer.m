@@ -172,18 +172,14 @@ try
     Screen('Flip', wptr);
 
     % --- Wait for trigger ---
-    [~,~,KeyCode] = KbCheck;
-    while ~KeyCode(TriggerSign)
-        [~,~,KeyCode] = KbCheck;
-    end
+    % Key queue: logs every trigger and response with its own GetSecs time
+    % (see ScannerKeys.m). t0 = first trigger = time zero of the run.
+    keys = ScannerKeys(TriggerSign, DetectKey, escapeKey, cfg.kbIndex);
+    t0   = keys.waitForTrigger();
 
-    % --- Start timing ---
-    tic;
-    StartTime        = toc;
-    t0               = GetSecs;   % same instant on PTB's clock, for Flip timestamps
-    LastKeyCheck     = toc;
-    LastResponseTime = toc;
-    lastFrameTime    = toc;
+    % --- Start timing: all run times are GetSecs - StartTime (s since trigger 1) ---
+    StartTime        = t0;
+    lastFrameTime    = t0;
 
     % Post-trigger flip (fixation task starts)
     fixTask.start();
@@ -196,7 +192,6 @@ try
     % columns: [elapsed, blockCode (0 rest, 1 static, 2 moving), phaseIdx, direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 5);
     nLog         = 0;
-    TriggerTime  = [];
     img_count    = 0;
 
     % Continuous ring position (real-time based, robust to frame rate)
@@ -207,7 +202,7 @@ try
     % Main loop
     % -----------------------------------------------------------------------
     while true
-        nowTime = toc;
+        nowTime = GetSecs;
         elapsed = nowTime - StartTime;
         if elapsed >= totalDuration, break; end
         dt = nowTime - lastFrameTime;
@@ -257,20 +252,13 @@ try
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, blockCode, phaseIdx, direction, onsetT - t0];
 
-        % --- Key checks (throttled to ~5 Hz) ---
-        if toc - LastKeyCheck > 0.2
-            LastKeyCheck = toc;
-            [KeyIsDown, ~, KeyCode] = KbCheck;
-            if KeyIsDown
-                if KeyCode(escapeKey)
-                    break
-                elseif KeyCode(DetectKey) && (toc - LastResponseTime > 0.3)
-                    fixTask.respond(toc - StartTime);
-                    LastResponseTime = toc;
-                elseif KeyCode(TriggerSign)
-                    TriggerTime = [TriggerTime, toc - StartTime];
-                end
-            end
+        % --- Key presses since the last frame (triggers are stored in keys) ---
+        [respTimes, escapePressed] = keys.poll(t0);
+        for r = respTimes
+            fixTask.respond(r);
+        end
+        if escapePressed
+            break
         end
 
         % --- Optional screenshot ---
@@ -284,6 +272,9 @@ try
     end
 
     LogData = LogData(1:nLog, :);
+    keys.release();
+    TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
+    keys.report(t0, totalDuration);
 
     % --- End screen ---
     Screen('FillRect', wptr, [0 0 0], [0 0 width height]);
@@ -322,6 +313,7 @@ try
     analysis_Fixation(FileName);
 
 catch err
+    if exist('keys','var'), try, keys.release(); catch, end, end
     Priority(0);
     Screen('CloseAll');
     ShowCursor;
