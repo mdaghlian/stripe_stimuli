@@ -36,7 +36,7 @@ BlockTime=stim_cfg.BlockTime;
 DelayTime=stim_cfg.DelayTime;
 save_screen=stim_cfg.save_screen;   % set to 1 to save screenshots
 
-nSteps=stim_cfg.nSteps;
+nSteps=stim_cfg.nPhaseSteps;
 orientationList=stim_cfg.thetaList;
 colourCondLabels=stim_cfg.colourCondLabels;
 
@@ -63,6 +63,13 @@ end
 
 % Define logfile path for the current run
 FileName=[pathfile fs 'Run_' sprintf('%d',name_run) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',name_run) '_colour'];
+
+% The stimuli on disk must have exactly nSteps frames per orientation
+% (they are written by makeStimuli with stim_cfg.nPhaseSteps)
+stimCheck=[pathfile fs 'stimuli' fs colourCondLabels{1} '_grating_' sprintf('%d',orientationList(1)) '_degrees' fs];
+if ~isfile([stimCheck sprintf('%d',nSteps) '.png']) || isfile([stimCheck sprintf('%d',nSteps+1) '.png'])
+    error('Stimuli in %s do not have stim_cfg.nPhaseSteps = %d frames. Regenerate them with makeStimuli.', stimCheck, nSteps);
+end
 
 % EXPERIMENTAL PARADIGM
 if name_run == 1

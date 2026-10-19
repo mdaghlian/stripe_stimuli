@@ -25,7 +25,7 @@ BlockTime        = stim_cfg.BlockTime;   % duration of each half-block (forward 
 DelayTime        = stim_cfg.DelayTime;
 FadingTime       = stim_cfg.FadingTime;   % seconds for fade in / fade out
 save_screen      = stim_cfg.save_screen;
-nSteps           = stim_cfg.nSteps;
+nSteps           = stim_cfg.nPhaseSteps;
 orientationList  = stim_cfg.thetaList;
 colourCondLabels = stim_cfg.colourCondLabels;
 
@@ -57,6 +57,13 @@ end
 
 FileName = [runDir fs 'logfiles' fs ...
             name_subj '_' name_sess '_Run' sprintf('%d', name_run) '_colourSeq'];
+
+% The stimuli on disk must have exactly nSteps frames per orientation
+% (they are written by makeStimuli with stim_cfg.nPhaseSteps)
+stimCheck=[pathfile fs 'stimuli' fs colourCondLabels{1} '_grating_' sprintf('%d',orientationList(1)) '_degrees' fs];
+if ~isfile([stimCheck sprintf('%d',nSteps) '.png']) || isfile([stimCheck sprintf('%d',nSteps+1) '.png'])
+    error('Stimuli in %s do not have stim_cfg.nPhaseSteps = %d frames. Regenerate them with makeStimuli.', stimCheck, nSteps);
+end
 
 %==========================================================================
 % BUILD STIMULUS SEQUENCES

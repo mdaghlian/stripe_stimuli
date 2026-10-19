@@ -24,7 +24,7 @@ TF_hz        = cheq_cfg.TF_hz;          % reversal rate (Hz)
 reversalPeriod = 1 / TF_hz;
 
 % --- Grating params ---
-nSteps           = stim_cfg.nSteps;
+nSteps           = stim_cfg.nPhaseSteps;
 orientationList  = stim_cfg.thetaList;
 colourCondLabels = stim_cfg.colourCondLabels;  % e.g. {'bw','colour'}
 

@@ -75,7 +75,7 @@ findIso_cfg.startPointRed = [180 200 220];
 % settings
 stim_cfg = struct();
 % -> used in makeStim
-stim_cfg.nPhaseSteps = 30; 
+stim_cfg.nPhaseSteps = 30; % frames per grating cycle; makeStimuli writes them, colourProject(Seq)/stimViewer load them
 %{
 Drift speed is determined by three parameters:
 
@@ -100,7 +100,6 @@ stim_cfg.BlockTime=30;%30;
 stim_cfg.DelayTime=15;%15; 
 stim_cfg.save_screen=0;
 % 
-stim_cfg.nSteps=30;
 stim_cfg.colourCondLabels={'bw', 'colour'};
 stim_cfg.FadingTime=1; % 1s originally
 
