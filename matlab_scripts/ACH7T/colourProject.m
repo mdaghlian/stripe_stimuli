@@ -61,9 +61,8 @@ if isdir([pathfile fs 'Run_' sprintf('%d',name_run)])==0
     end
 end
 
-% Define logfile paths for the current and previous run
+% Define logfile path for the current run
 FileName=[pathfile fs 'Run_' sprintf('%d',name_run) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',name_run) '_colour'];
-FileName_old=[pathfile fs 'Run_' sprintf('%d',name_run-1) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',name_run-1) '_colour'];
 
 % EXPERIMENTAL PARADIGM
 if name_run == 1
@@ -116,9 +115,23 @@ if name_run == 1
     pseudorandomisation(pseudorandomisation ~= 0) = 1;           % set colour blocks to 1
 
 else
-    % --- Subsequent runs: load the colour/BW pattern from the previous run
-    %     and generate a new sequence that preserves the same pattern ---
-    load([FileName_old '.mat'], 'pseudorandomisation');
+    % --- Subsequent runs: load the colour/BW pattern from the most recent
+    %     earlier run that has a log (all runs share the same pattern, so an
+    %     aborted or skipped run doesn't block the next one) and generate a
+    %     new sequence that preserves the same pattern ---
+    FileName_old='';
+    for r=name_run-1:-1:1
+        candidate=[pathfile fs 'Run_' sprintf('%d',r) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',r) '_colour.mat'];
+        if isfile(candidate) && ~isempty(whos('-file',candidate,'pseudorandomisation'))
+            FileName_old=candidate;
+            break
+        end
+    end
+    if isempty(FileName_old)
+        error('Run %d: no earlier run log with a bw/colour pattern in %s. Run 1 first (or set name_run=1).', name_run, pathfile);
+    end
+    fprintf('Using bw/colour pattern from %s\n', FileName_old);
+    load(FileName_old, 'pseudorandomisation');
     
     redo=1;
     while redo
