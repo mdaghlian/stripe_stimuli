@@ -16,8 +16,8 @@ function stimViewerLive()
 %     2        -> drifting B&W grating          (stim_cfg.stim_cpd, e.g. 0.4 cyc/deg)
 %     3        -> drifting colour grating        (uncalibrated preview - NOT isoluminance corrected)
 %     4        -> Nasr scotopic-style grating    (0.2 cyc/deg, 4 deg/s, direction reverses every 6 s)
-%     Left/Right arrows -> cycle grating orientation (modes 2-5)
-%     M        -> toggle motion on/off (moving vs. stationary - the actual
+%     Left/Right arrows -> cycle grating orientation (modes 2-4)
+%     M        -> toggle motion on/off (moving vs. stationary grating)
 %     ESCAPE   -> quit
 %
 %   No MRI triggers, no logging, no logfiles, no participant folders.
@@ -71,7 +71,6 @@ key1       = KbName('1!');
 key2       = KbName('2@');
 key3       = KbName('3#');
 key4       = KbName('4$');
-key5       = KbName('5%');
 keyLeft    = KbName('LeftArrow');
 keyRight   = KbName('RightArrow');
 keyM       = KbName('m');
@@ -116,7 +115,7 @@ try
     % -----------------------------------------------------------------------
     % State
     % -----------------------------------------------------------------------
-    currentMode = 0;    % 0 = idle, 1 = cheq, 2-5 = grating modes
+    currentMode = 0;    % 0 = idle, 1 = cheq, 2-4 = grating modes
     oriIdx      = 1;    % index into baseOriList
     motionOn    = true;
 
@@ -149,7 +148,6 @@ try
             elseif KeyCode(key2), currentMode = 2;
             elseif KeyCode(key3), currentMode = 3;
             elseif KeyCode(key4), currentMode = 4;
-            elseif KeyCode(key5), currentMode = 5;
             elseif KeyCode(keyLeft)
                 oriIdx = mod(oriIdx - 2, length(baseOriList)) + 1;
                 WaitSecs(0.15);   % simple debounce
@@ -163,7 +161,7 @@ try
         end
 
         % --- (Re)build grating textures if mode/orientation changed ---
-        if ismember(currentMode, [2 3 4 5]) && ...
+        if ismember(currentMode, [2 3 4]) && ...
                 (currentMode ~= builtMode || oriIdx ~= builtOriIdx)
             if ~isempty(gratingTex)
                 Screen('Close', gratingTex);
@@ -197,7 +195,7 @@ try
                 fixShown.draw(wptr);
                 drawStatusText(wptr, height, sprintf('Checkerboard: %.2f cyc/deg radial, %d wedges, %.1f Hz reversal', cheq_cpd, nWedges, TF_hz));
 
-            otherwise   % 2-5: drifting/static gratings
+            otherwise   % 2-4: drifting/static gratings
                 speed_dps = modeSpeed(currentMode);
                 cpd_here  = modeCPD(currentMode);
 
