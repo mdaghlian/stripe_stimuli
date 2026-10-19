@@ -25,6 +25,9 @@ height           = cfg.height;
 BlockTime        = stim_cfg.BlockTime;   % duration of each half-block (forward OR reverse)
 DelayTime        = stim_cfg.DelayTime;
 FadingTime       = stim_cfg.FadingTime;   % seconds for fade in / fade out
+if FadingTime <= 0 || FadingTime > BlockTime/2
+    error('stim_cfg.FadingTime must be > 0 and <= BlockTime/2 (%g s).', BlockTime/2);
+end
 save_screen      = stim_cfg.save_screen;
 nSteps           = stim_cfg.nPhaseSteps;
 orientationList  = stim_cfg.thetaList;
@@ -274,7 +277,7 @@ try
                 % Fade in / sustain / fade out
                 fadeOutStart = blockDur - FadingTime;
                 if fadingIn
-                    alphaImg = tInBlock;
+                    alphaImg = tInBlock / FadingTime;
                     if alphaImg >= 1
                         alphaImg = 1;
                         fadingIn = false;
@@ -284,7 +287,7 @@ try
                         fadingOut = true;
                         fadeStart = tNow;
                     end
-                    alphaImg = 1 - (tNow - fadeStart);
+                    alphaImg = 1 - (tNow - fadeStart) / FadingTime;
                     if alphaImg < 0, alphaImg = 0; end
                 end
 

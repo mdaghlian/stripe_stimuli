@@ -35,6 +35,10 @@ save_screen=stim_cfg.save_screen;   % set to 1 to save screenshots
 nSteps=stim_cfg.nPhaseSteps;
 orientationList=stim_cfg.thetaList;
 colourCondLabels=stim_cfg.colourCondLabels;
+FadingTime=stim_cfg.FadingTime;% duration of each fade in / fade out, s
+if FadingTime<=0 || FadingTime>BlockTime/2
+    error('stim_cfg.FadingTime must be > 0 and <= BlockTime/2 (%g s).', BlockTime/2);
+end
 
 % INITIALISE KEYS
 escapeKey=KbName('ESCAPE');
@@ -296,7 +300,6 @@ try
     
     % experiment 
     cnt=1;
-    FadingTime=1;
     FadeNeg=0;
     FadePos=0;
     OnsetPos=0;
@@ -305,8 +308,9 @@ try
     bw_onset=[];
     colour_onset=[];
     EyelinkData=[];
-    BlockSeq=[BlockSeq zeros(1,FadingTime)];%append zeros to fade out at the end of the run even if DelayTime is set to 0.
-    BlockSeqDir=[BlockSeqDir zeros(1,FadingTime)];
+    nPad=ceil(FadingTime);
+    BlockSeq=[BlockSeq zeros(1,nPad)];%append zeros to fade out at the end of the run even if DelayTime is set to 0.
+    BlockSeqDir=[BlockSeqDir zeros(1,nPad)];
     %Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
     %columns: [t blockCode phaseStep alpha flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData=nan(ceil((length(BlockSeq)+10)*240),5);
@@ -314,7 +318,7 @@ try
     TriggerTime=[];
     img_count=0;
     
-    while toc-StartTime<length(BlockSeq)-FadingTime%because of the appended zeros, we subtract the FadingTime here                                 
+    while toc-StartTime<length(BlockSeq)-nPad%because of the appended zeros, we subtract nPad here                                 
         fixTask.update(toc-StartTime);
         if (BlockSeq(floor(toc-StartTime+1))==0) 
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
@@ -325,13 +329,14 @@ try
             end
         else            
             OnsetPos=0;            
+            % fade out once the block ends within FadingTime (second half of a block, next block or rest starts at t+FadingTime)
             if (mod(BlockSeq(floor(toc-StartTime+1)),2)==1 && mod(BlockSeq(floor(toc-StartTime+1+FadingTime)),2)==0)
                 if FadeNeg==0
                     fadeStart=toc-StartTime;
                     FadeNeg=1;
                     FadePos=0;
                 end
-                alphaImg=1-((toc-StartTime)-fadeStart);
+                alphaImg=1-((toc-StartTime)-fadeStart)/FadingTime;
                 if alphaImg<0
                     alphaImg=0;
                 end         
@@ -346,7 +351,7 @@ try
                     FadeNeg=0;
                     FadePos=1;
                 end 
-                alphaImg=((toc-StartTime)-fadeStart);
+                alphaImg=((toc-StartTime)-fadeStart)/FadingTime;
                 if alphaImg>1
                    alphaImg=1;
                 end

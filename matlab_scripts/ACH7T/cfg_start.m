@@ -100,7 +100,7 @@ stim_cfg.DelayTime=15;%15;
 stim_cfg.save_screen=0;
 % 
 stim_cfg.colourCondLabels={'bw', 'colour'};
-stim_cfg.FadingTime=1; % 1s originally
+stim_cfg.FadingTime=1; % duration of each fade in / fade out, s (1 s originally); must be <= BlockTime/2
 
 
 % FOR SEQ
