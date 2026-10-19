@@ -110,7 +110,7 @@ if name_run == 1
     % Record whether each block is colour (1) or black-and-white (0),
     % based on whether the condition index is in the upper or lower half
     pseudorandomisation = temp;
-    pseudorandomisation(pseudorandomisation > nBlocks/2) = 10;  % mark colour blocks
+    pseudorandomisation(pseudorandomisation > nConditions/2) = 10;  % mark colour blocks
     pseudorandomisation(pseudorandomisation ~= 10) = 0;          % zero out non-colour
     pseudorandomisation(pseudorandomisation ~= 0) = 1;           % set colour blocks to 1
 
@@ -165,7 +165,7 @@ else
         
         % Convert candidate sequence to colour/BW binary pattern
         temp_check = temp;
-        temp_check(temp_check > nBlocks/2) = 10;
+        temp_check(temp_check > nConditions/2) = 10;
         temp_check(temp_check ~= 10) = 0;
         temp_check(temp_check ~= 0) = 1;
 
@@ -338,7 +338,7 @@ try
                 end         
             else 
                 if FadePos==0
-                    if BlockSeq(floor(toc-StartTime+1))<=8%save onset times
+                    if BlockSeq(floor(toc-StartTime+1))<=nConditions%save onset times (BW conditions 1..nConditions/2 have codes 2..nConditions)
                         bw_onset=[bw_onset toc-StartTime];
                     else
                         colour_onset=[colour_onset toc-StartTime];
