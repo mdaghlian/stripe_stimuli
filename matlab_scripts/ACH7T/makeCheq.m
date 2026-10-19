@@ -34,7 +34,6 @@ deg_per_px = 1 / (px_per_cm * cm_per_deg);  % degrees per pixel
 % Radial SF: cheq_cfg.stim_cpd is cycles per degree along the radius,
 % linear in eccentricity (checks do not grow with eccentricity).
 cpd       = cheq_cfg.stim_cpd;                     % cycles per degree (radial)
-px_per_deg = 1 / deg_per_px;
 
 % -------------------------------------------------------------------------
 % Build the dartboard checkerboard (linear radius x polar angle)

@@ -14,9 +14,6 @@ if ~exist('name_sess','var')
 end
 
 % DIRECTORY
-% warning ('off','Octave:language-extension');%suppress annoying warnings because of Matlab incompatibilities and missing semicolons
-% warning('off','Octave:missing-semicolon');
-% warning ('off','Octave:mixed-string-concat'); 
 dir_base=cfg.dir_base;
 if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile=[dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli'];
@@ -48,8 +45,6 @@ stim_params = struct();
 % we halved the size of the images (1920/2x1080/2)
 width=cfg.width * cfg.image_frac;
 height=cfg.height * cfg.image_frac;
-lambda=stim_cfg.lambda;%in px
-spatialFreq=1/lambda;
 
 % -------------------------------
 % -------------------------------
@@ -72,12 +67,8 @@ stim_params.timestamp = datetime('now');
 stim_params.bwParams = bwParams;
 stim_params.redParams = redParams;
 stim_params.eccClamp_px = findIso_cfg.ecc_mean([1 end])*cfg.height; % full-screen px; weights constant outside
-% Generate a filename (example uses a subject ID if available in cfg)
-if isfield(cfg, 'subjectID')
-    filename = sprintf('stim_meta_%s_%s.mat', cfg.subjectID, datestr(now, 'yyyy-mm-dd_HHMM'));
-else
-    filename = sprintf('stim_metadata_%s.mat', datestr(now, 'yyyy-mm-dd_HHMM'));
-end
+% Generate a filename
+filename = sprintf('stim_metadata_%s.mat', datestr(now, 'yyyy-mm-dd_HHMM'));
 stim_params.note = "NOTE based on IMAGE FRAC";
 % Save the struct to a mat file
 stim_file=[pathfile fs 'logfiles' fs filename];

@@ -23,8 +23,6 @@ end
 % AVERAGE
 % over repetitions for each eccentricity
 meanData=mean(isoLumData,2);
-%eccList=[51.2 179.2 384];%mean of factors (0,.1), (.1,.25) and (.25,.5) times height
-% eccList=[19.2 67.2 144];%new mean since we halve the generated images (512x384)
 % -> Updated less magic number method: find the mean per ecc band
 % USING "TRUE" PIXEL VALUES HERE
 eccList = findIso_cfg.ecc_mean * cfg.height;
@@ -51,8 +49,6 @@ set(gca,'FontSize',14);
 
 % FIG. 3
 params=polyfit(log(eccList),meanData,1);%linear least-squares fit
-%fitX=linspace(log(33.12),log(665.14),100);
-% fitX=linspace(log(12.2),log(244.7),100);%line for (512x384)
 fitY=polyval(params,log(eccList));
 
 figure

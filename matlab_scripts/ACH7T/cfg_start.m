@@ -28,9 +28,6 @@ cfg.image_frac = 0.5; % For generating images downsample for speed / memory
 
 cfg.distance_cm = 113.0; % 
 cfg.height_cm   = 20.0;
-px_per_cm = cfg.height / cfg.height_cm;
-cm_per_deg = 2 * cfg.distance_cm * tan(deg2rad(0.5));
-cfg.px_per_deg = px_per_cm * cm_per_deg;
 
 %% FIXATION TASK (FixationTask.m) - shared by all run scripts
 % Vigilance task: the central marker changes every minInterval-maxInterval s
@@ -92,8 +89,7 @@ Where:
     -> temporal frequency = 60 / 30 = 2 Hz
     -> drift speed        = 2 / 0.4 = 5 deg/s
 %}
-stim_cfg.lambda = 107; % in px
-stim_cfg.stim_cpd = 0.4;  % Stim cycles per degree - in competition with weird hard coded 107
+stim_cfg.stim_cpd = 0.4;  % Stim cycles per degree
 stim_cfg.thetaList = [0 45 90 135];
 % -> used in colourProject
 stim_cfg.nBlocks=8; % has to be int multiple of nConditions
@@ -110,7 +106,6 @@ stim_cfg.FadingTime=1; % 1s originally
 % FOR SEQ
 stim_cfg.Bcondition_list= {'bw', 'bw','rest', 'bw', 'bw', 'rest','bw', 'bw', };
 stim_cfg.Bori_per_stim = 2; % 2 orientations per stim
-stim_cfg.Bdirection_per_ori = 2; % 2 directions per orientation 
 
 
 

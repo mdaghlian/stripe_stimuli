@@ -4,12 +4,6 @@ close all;
 cfg_start;
 fs=filesep;
 % DIRECTORY
-warning('off');%suppress annoying warnings because of embedding psychtoolbox folders, Matlab incompatibilities and missing semicolons
-% addpath(genpath(cfg.PTB_dir));
-warning('on');
-% warning ('off','Octave:language-extension');
-% warning('off','Octave:missing-semicolon');
-% warning ('off','Octave:mixed-string-concat'); 
 dir_base=cfg.dir_base;
 if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 % CHECK INPUTS
@@ -46,16 +40,10 @@ fixSize=findIso_cfg.fixSize;%size of fixation spot
 % INITIALISE KEYS
 KbName('UnifyKeyNames');
 escapeKey=KbName('ESCAPE');
-%DarkKey=KbName('LEFT');
-%LightKey=KbName('RIGHT');
-%DoneKey=KbName('SPACE');
-%escapeKey=KbName('4');%should not be activated
 DarkKey=KbName('1!');
 LightKey=KbName('2@');
 DoneKey=KbName('3#');
 
-% ---- REMOVE THIS LATER ------ %
-% Screen('Preference', 'SkipSyncTests', 0);
 %%
 %==========================================================================
 % end of user specified settings (do not edit below)
@@ -75,8 +63,6 @@ if isdir([dir_base fs name_subj fs 'colour' fs name_sess])==0
    mkdir([dir_base fs name_subj fs 'colour'],name_sess);
    mkdir([dir_base fs name_subj fs 'colour' fs name_sess],'stimuli'); 
    mkdir([dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli'],'logfiles'); 
-else
-%    error('Session has already been carried out!');    
 end
 pathfile=[dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli' fs 'logfiles'];
 
@@ -137,7 +123,6 @@ InvGammaTable=repmat(lumSpectrum',1,3);
 flipT=tic;
 flipTsum=0;
 flipTCount=0;
-KeyIsDown=0;
 keyTime=tic;
 keyReleased=0;%the start key must be released before the first step
 trial=0;
@@ -154,7 +139,6 @@ try
     Screen('LoadNormalizedGammaTable',screenid,InvGammaTable);%load InvGammaTable immediately into graphics card for gamma correction
         
     % open screen window with imaging pipeline setup
-    % Screen('Preference', 'SkipSyncTests', 1); %need to remove
     wptr=PsychImaging('OpenWindow',screenid);   
     ListenChar(2);%suppress any keypresses to Octave command window
     HideCursor;

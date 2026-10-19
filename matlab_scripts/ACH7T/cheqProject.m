@@ -27,17 +27,8 @@ OffTime   = cheq_cfg.OffTime;     % OFF duration (seconds)
 TF_hz     = cheq_cfg.TF_hz;      % reversals per second
 save_screen = cheq_cfg.save_screen;
 
-if isfield(cheq_cfg,'initial_blank')
-    initial_blank = cheq_cfg.initial_blank;
-else
-    initial_blank = 0;
-end
-
-if isfield(cheq_cfg,'end_blank')
-    end_blank = cheq_cfg.end_blank;
-else
-    end_blank = 0;
-end
+initial_blank = cheq_cfg.initial_blank;
+end_blank     = cheq_cfg.end_blank;
 
 reversalPeriod = 1 / TF_hz;      % seconds per half-cycle (one phase)
 
@@ -187,7 +178,6 @@ try
                 break
             end
             cumT = cumT + BlockList(b).duration;
-            % Log onset of next block on first frame it becomes current
         end
 
         % --- Determine which checkerboard phase (based on wall time) ---
@@ -210,10 +200,6 @@ try
         isOn = strcmp(currentBlock.type,'on');
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, isOn, phaseIndex, onsetT - t0];
-
-        % Track onset times (first frame of each block type)
-        % Simple approach: log whenever block identity changes
-        % (handled below via cumulative time comparison)
 
         % --- Key checks (throttled to ~5 Hz) ---
         if toc - LastKeyCheck > 0.2

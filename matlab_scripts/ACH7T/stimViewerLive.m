@@ -95,7 +95,7 @@ try
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     % --- Build checkerboard textures (once, procedurally - see makeCheq.m) ---
-    [cheqTex, ~] = buildCheckerboardTextures(wptr, width, height, distance_cm, height_cm, cheq_cpd, nWedges);
+    cheqTex = buildCheckerboardTextures(wptr, width, height, distance_cm, height_cm, cheq_cpd, nWedges);
 
     % --- Background ---
     bgTex    = Screen('MakeTexture', wptr, BGimage);
@@ -277,7 +277,7 @@ end
 
 
 % =============================================================================
-function [tex, checkerMeta] = buildCheckerboardTextures(wptr, width, height, distance_cm, height_cm, cpd, nWedges)
+function tex = buildCheckerboardTextures(wptr, width, height, distance_cm, height_cm, cpd, nWedges)
 % Build the two-frame flashing radial checkerboard, procedurally.
 % Identical maths to makeCheq.m, just done in memory instead of on disk.
 
@@ -306,7 +306,6 @@ frame1 = uint8(((-checker + 1) / 2) * 255);
 tex(1) = Screen('MakeTexture', wptr, frame0);
 tex(2) = Screen('MakeTexture', wptr, frame1);
 
-checkerMeta.deg_per_px = deg_per_px;
 end
 
 

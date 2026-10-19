@@ -18,11 +18,6 @@ if ~exist('name_run','var')
 end
 
 % DIRECTORY
-% Suppress warnings from PsychToolbox path embedding and Matlab incompatibilities
-warning('off');
-% addpath(genpath(cfg.PTB_dir));
-warning('on');
-
 dir_base=cfg.dir_base;
 if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 
@@ -91,7 +86,6 @@ if name_run == 1
         for i=1:length(temp)-1
             if temp(i)==temp(i+1)
                redo=1;
-               disp('2');
                break
             end
         end
@@ -102,11 +96,9 @@ if name_run == 1
         for i=1:length(temp)-2    
             if (temp(i)<=nConditions/2 && temp(i+1)<=nConditions/2 && temp(i+2)<=nConditions/2)
                 redo=1;
-                disp('3');
                 break
             elseif (temp(i)>nConditions/2 && temp(i+1)>nConditions/2 && temp(i+2)>nConditions/2)
                 redo=1;
-                disp('4');
                 break
             end
         end
@@ -223,8 +215,6 @@ for i=1:length(Block)
     end
 end
 
-disp(BlockSeqDir)
-disp(BlockSeq)
 
 totalFrames = length(BlockSeq);
 totalMins   = floor(totalFrames / 60);
@@ -286,8 +276,6 @@ try
     % wait for trigger command
     [~,~,KeyCode]=KbCheck; 
     while ~KeyCode(TriggerSign)
-%         display(find(KeyCode))
-%         display(TriggerSign)
         [~,~,KeyCode]=KbCheck;
     end
     
@@ -313,7 +301,6 @@ try
     FadePos=0;
     OnsetPos=0;
     alphaImg=0;
-    KeyIsDown=0;
     rest_onset=[];
     bw_onset=[];
     colour_onset=[];
@@ -390,7 +377,6 @@ try
             LastKeyCheck=toc;
             [KeyIsDown,~,KeyCode]=KbCheck;
             if KeyIsDown==1
-                KeyIsDown=0;
                 if KeyCode(escapeKey)
                     break
                 elseif (KeyCode(DetectKey) && toc-LastResponseTime>0.3)
