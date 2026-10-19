@@ -42,8 +42,11 @@ TriggerSign = KbName('5%');
 %==========================================================================
 % LOGFILE
 %==========================================================================
+% Stimuli are shared with colourProject (<pathfile>/stimuli), but runs and
+% logs are kept separate (SeqRun_<n>, *_colourSeq) so neither script
+% overwrites the other's logfiles.
 pathfile = [dir_base fs name_subj fs 'colour' fs name_sess];
-runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
+runDir   = [pathfile fs 'SeqRun_' sprintf('%d', name_run)];
 if ~isdir(runDir)
     status = mkdir(runDir);
     if ~status
@@ -53,7 +56,7 @@ if ~isdir(runDir)
 end
 
 FileName = [runDir fs 'logfiles' fs ...
-            name_subj '_' name_sess '_Run' sprintf('%d', name_run) '_colour'];
+            name_subj '_' name_sess '_Run' sprintf('%d', name_run) '_colourSeq'];
 
 %==========================================================================
 % BUILD STIMULUS SEQUENCES
