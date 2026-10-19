@@ -448,8 +448,8 @@ try
     save([FileName '_Cond.mat'],'names','onsets','durations','-mat');
     save([FileName '_Eye.mat'],'EyelinkData','-mat');
     save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','fix_cfg','-mat');
-    % analysis_Stability(FileName);
-    % analysis_Fixation(FileName);
+    analysis_Stability(FileName);
+    analysis_Fixation(FileName);
 catch err
     Screen('CloseAll');
     ShowCursor;

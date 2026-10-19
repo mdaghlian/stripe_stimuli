@@ -271,6 +271,9 @@ try
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'fix_cfg', '-mat');
     fprintf('Run saved to: %s\n', FileName);
 
+    analysis_Stability(FileName);
+    analysis_Fixation(FileName);
+
 catch err
     Screen('CloseAll');
     ShowCursor;
