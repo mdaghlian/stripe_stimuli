@@ -120,6 +120,7 @@ flipTsum=0;
 flipTCount=0;
 KeyIsDown=0;
 keyTime=tic;
+keyReleased=0;%the start key must be released before the first step
 trial=0;
 escapeFlag=0;
 allowDone=0;
@@ -269,10 +270,13 @@ try
             end
             InvGammaTable(3,:)=[0 lumSpectrum(256) 0];%refresh green fixation spot
             
-            % response
+            % response: one step per key press. A key must be released
+            % before it counts again, so holding it does not auto-repeat.
             [KeyIsDown,~,KeyCode]=KbCheck;
-            if KeyIsDown==1 && toc(keyTime)>.1
-                KeyIsDown=0;
+            if ~KeyIsDown
+                keyReleased=1;
+            elseif keyReleased==1 && toc(keyTime)>.1
+                keyReleased=0;
                 if KeyCode(escapeKey)%escape
                     escapeFlag=1;
                     break
