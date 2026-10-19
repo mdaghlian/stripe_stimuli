@@ -152,6 +152,7 @@ try
     % --- Start timing ---
     tic;
     StartTime     = toc;
+    t0            = GetSecs;   % same instant on PTB's clock, for Flip timestamps
     LastKeyCheck  = toc;
     LastResponseTime = toc;
 
@@ -162,7 +163,10 @@ try
     Screen('Flip', wptr);
 
     % ---- Log structures ----
-    LogData      = [];   % [t blockType frameShown]
+    % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
+    % columns: [t isOn phaseIndex flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
+    LogData      = nan(ceil((totalDuration + 10) * 240), 4);
+    nLog         = 0;
     TriggerTime  = [];
     img_count    = 0;
 
@@ -199,12 +203,12 @@ try
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        Screen('Flip', wptr);
+        [~, onsetT] = Screen('Flip', wptr);
 
         % --- Log ---
         isOn = strcmp(currentBlock.type,'on');
-        tempLog = [elapsed, isOn, phaseIndex];
-        LogData = cat(1, LogData, tempLog);
+        nLog = nLog + 1;
+        LogData(nLog, :) = [elapsed, isOn, phaseIndex, onsetT - t0];
 
         % Track onset times (first frame of each block type)
         % Simple approach: log whenever block identity changes
@@ -235,6 +239,8 @@ try
             img_count = img_count + 1;
         end
     end
+
+    LogData = LogData(1:nLog, :);
 
     % --- End screen ---
     Screen('FillRect', wptr, [0 0 0], [0 0 width height]);

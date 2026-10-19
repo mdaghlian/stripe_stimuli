@@ -301,6 +301,7 @@ try
     
     % first time query
     StartTime=toc;
+    t0=GetSecs;%same instant on PTB's clock, for Flip timestamps
     LastResponseTime=toc;
     LastKeyCheck=toc;
     
@@ -315,10 +316,13 @@ try
     rest_onset=[];
     bw_onset=[];
     colour_onset=[];
-    LogData=[];    
     EyelinkData=[];
     BlockSeq=[BlockSeq zeros(1,FadingTime)];%append zeros to fade out at the end of the run even if DelayTime is set to 0.
     BlockSeqDir=[BlockSeqDir zeros(1,FadingTime)];
+    %Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
+    %columns: [t blockCode phaseStep alpha flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
+    LogData=nan(ceil((length(BlockSeq)+10)*240),5);
+    nLog=0;
     TriggerTime=[];
     img_count=0;
     
@@ -376,8 +380,9 @@ try
             fixTask.draw(wptr);
         end
         tempLog=[toc-StartTime BlockSeq(floor(toc-StartTime)+1) cnt alphaImg];
-        LogData=cat(1,LogData,tempLog);
-        Screen('Flip',wptr);
+        [~,onsetT]=Screen('Flip',wptr);
+        nLog=nLog+1;
+        LogData(nLog,:)=[tempLog onsetT-t0];
         
         % check key presses
         if toc-LastKeyCheck>0.2
@@ -418,6 +423,8 @@ try
             EyelinkData = cat(1, EyelinkData, [toc-StartTime evt.gx(1) evt.gy(1) evt.pa(1)]);
         end
     end
+    
+    LogData=LogData(1:nLog,:);
     
     % end screen
     Screen('FillRect',wptr,[0 0 0],[0 0 width height]);

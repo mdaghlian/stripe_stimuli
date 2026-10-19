@@ -187,6 +187,7 @@ try
     Screen('Flip', wptr);
 
     StartTime        = toc;
+    t0               = GetSecs;   % same instant on PTB's clock, for Flip timestamps
     LastResponseTime = toc;
     LastKeyCheck     = toc;
 
@@ -196,7 +197,12 @@ try
     allCondLabels = unique(condition_list, 'stable');
     onsets        = cell(1, numel(allCondLabels));
 
-    LogData      = [];
+    % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
+    % columns: [t block imgIndex phaseStep alpha direction flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
+    isRestEntry = strcmpi(expanded_list, 'rest');
+    runDur      = sum(isRestEntry)*DelayTime + sum(~isRestEntry)*BlockTime;
+    LogData     = nan(ceil((runDur + 10) * 240), 7);
+    nLog        = 0;
     TriggerTime  = [];
 
     img_count      = 0;
@@ -290,8 +296,9 @@ try
                 fixTask.draw(wptr);
             end
 
-            LogData = cat(1, LogData, [tNow, b, imgIndex, cnt, alphaImg, dirCode*(~isRestBlock)]);
-            Screen('Flip', wptr);
+            [~, onsetT] = Screen('Flip', wptr);
+            nLog = nLog + 1;
+            LogData(nLog, :) = [tNow, b, imgIndex, cnt, alphaImg, dirCode*(~isRestBlock), onsetT - t0];
 
             % Key check (throttled to every 200 ms)
             if toc - LastKeyCheck > 0.2
@@ -324,6 +331,7 @@ try
         if escapePressed, break; end
 
     end  % end block loop
+    LogData = LogData(1:nLog, :);
 
     %----------------------------------------------------------------------
     % END SCREEN

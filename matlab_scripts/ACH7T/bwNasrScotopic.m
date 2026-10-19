@@ -186,6 +186,7 @@ try
     % --- Start timing ---
     tic;
     StartTime        = toc;
+    t0               = GetSecs;   % same instant on PTB's clock, for Flip timestamps
     LastKeyCheck      = toc;
     LastResponseTime  = toc;
     lastFrameTime     = toc;
@@ -197,7 +198,10 @@ try
     Screen('Flip', wptr);
 
     % ---- Log structures ----
-    LogData      = [];   % [elapsed, isStim, orientationDeg, phaseStep, direction]
+    % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
+    % columns: [elapsed, isStim, orientationDeg, phaseStep, direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
+    LogData      = nan(ceil((totalDuration + 10) * 240), 6);
+    nLog         = 0;
     TriggerTime  = [];
     img_count    = 0;
 
@@ -251,12 +255,12 @@ try
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        Screen('Flip', wptr);
+        [~, onsetT] = Screen('Flip', wptr);
 
         % --- Log ---
         oriLog = NaN; if isStim, oriLog = currentBlock.ori; end
-        tempLog = [elapsed, isStim, oriLog, phaseIdx, direction];
-        LogData = cat(1, LogData, tempLog);
+        nLog = nLog + 1;
+        LogData(nLog, :) = [elapsed, isStim, oriLog, phaseIdx, direction, onsetT - t0];
 
         % --- Key checks (throttled to ~5 Hz) ---
         if toc - LastKeyCheck > 0.2
@@ -283,6 +287,8 @@ try
             img_count = img_count + 1;
         end
     end
+
+    LogData = LogData(1:nLog, :);
 
     % --- End screen ---
     Screen('FillRect', wptr, [0 0 0], [0 0 width height]);
