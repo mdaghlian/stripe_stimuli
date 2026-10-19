@@ -45,7 +45,7 @@ screenid    = cfg.screenid;
 width       = cfg.width;
 height      = cfg.height;
 dir_base    = cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 
 % Image-dependent values (ring period, nPhaseSteps, bgLum) are taken from
 % the makeMT metadata below so they always match the frames on disk.
@@ -72,7 +72,7 @@ TriggerSign = KbName('5%');
 pathfile = [dir_base fs name_subj fs 'mt' fs name_sess];
 stimPath = [pathfile fs 'stimuli'];
 metaFile = [stimPath fs 'logfiles' fs 'stim_metadata.mat'];
-if ~isfile(metaFile)
+if exist(metaFile,'file')~=2
     fprintf('No MT stimuli in %s - building them now.\n', stimPath);
     makeMT(name_subj, name_sess);
 end
@@ -84,7 +84,7 @@ px_per_deg_image  = stim_params_mt.px_per_deg;    % half-resolution image px
 px_per_deg_screen = px_per_deg_image / stim_params_mt.cfg.image_frac;
 
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
-if ~isfolder(runDir)
+if exist(runDir,'dir')~=7
     mkdir(runDir);
     mkdir([runDir fs 'logfiles']);
 end
@@ -276,7 +276,7 @@ try
         % --- Optional screenshot ---
         if save_screen
             imgDir = [runDir fs 'img'];
-            if ~isfolder(imgDir), mkdir(imgDir); end
+            if exist(imgDir,'dir')~=7, mkdir(imgDir); end
             imageArray = Screen('GetImage', wptr, [0 0 width height]);
             imwrite(imageArray, [imgDir fs 'img_' num2str(img_count) '.png']);
             img_count = img_count + 1;

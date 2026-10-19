@@ -30,7 +30,7 @@ colourCondLabels = stim_cfg.colourCondLabels;  % e.g. {'bw','colour'}
 
 % --- Paths ---
 dir_base     = cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 % Grating stimuli live under the colour experiment folder.
 % Adjust name_subj / name_sess if needed, or point directly at stimuli root.
 pathfile  = [dir_base fs name_subj fs 'colour' fs name_sess];

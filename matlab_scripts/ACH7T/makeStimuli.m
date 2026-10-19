@@ -15,7 +15,7 @@ end
 
 % DIRECTORY
 dir_base=cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile=[dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli'];
 % GET VALUES FROM BLUE ISOLUMINANCE
 file2Check=[pathfile fs 'logfiles' fs 'bwFitData.mat'];

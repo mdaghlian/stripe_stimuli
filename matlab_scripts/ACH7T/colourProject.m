@@ -19,7 +19,7 @@ end
 
 % DIRECTORY
 dir_base=cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 
 % ADJUSTABLE PARAMETERS
 screenid=cfg.screenid;   
@@ -67,7 +67,7 @@ FileName=[pathfile fs 'Run_' sprintf('%d',name_run) fs 'logfiles' fs name_subj '
 % The stimuli on disk must have exactly nSteps frames per orientation
 % (they are written by makeStimuli with stim_cfg.nPhaseSteps)
 stimCheck=[pathfile fs 'stimuli' fs colourCondLabels{1} '_grating_' sprintf('%d',orientationList(1)) '_degrees' fs];
-if ~isfile([stimCheck sprintf('%d',nSteps) '.png']) || isfile([stimCheck sprintf('%d',nSteps+1) '.png'])
+if exist([stimCheck sprintf('%d',nSteps) '.png'],'file')~=2 || exist([stimCheck sprintf('%d',nSteps+1) '.png'],'file')==2
     error('Stimuli in %s do not have stim_cfg.nPhaseSteps = %d frames. Regenerate them with makeStimuli.', stimCheck, nSteps);
 end
 
@@ -126,7 +126,7 @@ else
     FileName_old='';
     for r=name_run-1:-1:1
         candidate=[pathfile fs 'Run_' sprintf('%d',r) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',r) '_colour.mat'];
-        if isfile(candidate) && ~isempty(whos('-file',candidate,'pseudorandomisation'))
+        if exist(candidate,'file')==2 && ~isempty(whos('-file',candidate,'pseudorandomisation'))
             FileName_old=candidate;
             break
         end

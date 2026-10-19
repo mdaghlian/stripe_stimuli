@@ -6,7 +6,7 @@ fs=filesep;
 
 % DIRECTORY
 dir_base=cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 % CHECK INPUTS
 if ~exist('name_subj','var')  
     name_subj='TestSubj';

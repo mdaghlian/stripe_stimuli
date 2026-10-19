@@ -20,11 +20,11 @@ if ~exist('name_sess', 'var'), name_sess  = 'TestSess';  end
 % Directories
 % -------------------------------------------------------------------------
 dir_base = cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile = [dir_base fs name_subj fs 'mt' fs name_sess fs 'stimuli'];
-if ~isfolder(pathfile), mkdir(pathfile); end
+if exist(pathfile,'dir')~=7, mkdir(pathfile); end
 outFolder = [pathfile fs 'ring_frames'];
-if ~isfolder(outFolder), mkdir(outFolder); end
+if exist(outFolder,'dir')~=7, mkdir(outFolder); end
 
 % -------------------------------------------------------------------------
 % Geometry (images downsampled by image_frac for speed / memory)
@@ -75,6 +75,6 @@ stim_params_mt.px_per_deg     = px_per_deg;        % image px (kept under this n
 stim_params_mt.px_per_deg_screen = px_per_deg / cfg.image_frac;
 stim_params_mt.timestamp      = datetime('now');
 metafile = [pathfile fs 'logfiles'];
-if ~isfolder(metafile), mkdir(metafile); end
+if exist(metafile,'dir')~=7, mkdir(metafile); end
 save([metafile fs 'stim_metadata.mat'], 'stim_params_mt');
 fprintf('Metadata saved.\n');

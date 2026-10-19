@@ -15,11 +15,11 @@ if ~exist('name_sess', 'var'), name_sess  = 'TestSess';  end
 % Directories
 % -------------------------------------------------------------------------
 dir_base = cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile = [dir_base fs name_subj fs 'cheq' fs name_sess fs 'stimuli'];
-if ~isfolder(pathfile), mkdir(pathfile); end
+if exist(pathfile,'dir')~=7, mkdir(pathfile); end
 outFolder = [pathfile fs 'checkerboard_frames'];
-if ~isfolder(outFolder), mkdir(outFolder); end
+if exist(outFolder,'dir')~=7, mkdir(outFolder); end
 
 % -------------------------------------------------------------------------
 % Geometry
@@ -83,7 +83,7 @@ stim_params_cheq.deg_per_px       = deg_per_px;
 stim_params_cheq.cpd              = cpd;
 stim_params_cheq.timestamp        = datetime('now');
 metafile = [pathfile fs 'logfiles'];
-if ~isfolder(metafile), mkdir(metafile); end
+if exist(metafile,'dir')~=7, mkdir(metafile); end
 save([metafile fs 'stim_metadata.mat'], 'stim_params_cheq');
 fprintf('Metadata saved.\n');
 

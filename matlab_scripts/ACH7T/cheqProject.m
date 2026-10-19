@@ -43,16 +43,16 @@ TriggerSign = KbName('5%');
 % Paths & logfile
 % -------------------------------------------------------------------------
 dir_base = cfg.dir_base;
-if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
+if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile = [dir_base fs name_subj fs 'cheq' fs name_sess];
 stimPath = [pathfile fs 'stimuli' fs 'checkerboard_frames'];
-if ~isfile([stimPath fs 'frame1.png'])
+if exist([stimPath fs 'frame1.png'],'file')~=2
     fprintf('No checkerboard stimuli in %s - building them now.\n', stimPath);
     makeCheq(name_subj, name_sess);
 end
 
 runDir = [pathfile fs 'Run_' sprintf('%d', name_run)];
-if ~isfolder(runDir)
+if exist(runDir,'dir')~=7
     mkdir(runDir);
     mkdir([runDir fs 'logfiles']);
 end
@@ -220,7 +220,7 @@ try
         % --- Optional screenshot ---
         if save_screen
             imgDir = [runDir fs 'img'];
-            if ~isfolder(imgDir), mkdir(imgDir); end
+            if exist(imgDir,'dir')~=7, mkdir(imgDir); end
             imageArray = Screen('GetImage', wptr, [0 0 width height]);
             imwrite(imageArray, [imgDir fs 'img_' num2str(img_count) '.png']);
             img_count = img_count + 1;
