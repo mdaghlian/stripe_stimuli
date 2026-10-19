@@ -99,7 +99,13 @@ R_max=findIso_cfg.ecc_mean(end)*cfg.height;
 R=log(min(max(R,R_min),R_max));
 
 % CALCULATE WEIGHTINGS
-fxn1=polyval(bwParams,R); 
+% BW peak = 2 x the grey matched to full blue, so the BW grating (0 to peak)
+% has a MEAN drive equal to the matched grey, as in Nasr's and LW's
+% generators (removed without comment in 07b05c4, restored here). Without
+% the x2 the BW grating peaks at the matched grey: half the contrast and a
+% lower mean than the colour grating. Where 2 x grey exceeds 255 the clip
+% below lowers the mean again.
+fxn1=polyval(bwParams,R)*2;
 fxn1(fxn1>255)=255;
 fxn1(fxn1<0)=0;
 
