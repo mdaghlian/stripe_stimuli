@@ -52,6 +52,7 @@ TriggerSign = KbName('5%');
 % Paths & logfile
 % -------------------------------------------------------------------------
 dir_base = cfg.dir_base;
+if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile = [dir_base fs name_subj fs 'cheq' fs name_sess];
 stimPath = [pathfile fs 'stimuli' fs 'checkerboard_frames'];
 if ~isfile([stimPath fs 'frame1.png'])

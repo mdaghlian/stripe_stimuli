@@ -42,6 +42,7 @@ screenid    = cfg.screenid;
 width       = cfg.width;
 height      = cfg.height;
 dir_base    = cfg.dir_base;
+if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 
 % -------------------------------------------------------------------------
 % Stimulus / timing parameters (scot_cfg in cfg_start). Image-dependent

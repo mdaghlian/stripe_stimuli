@@ -45,6 +45,7 @@ screenid    = cfg.screenid;
 width       = cfg.width;
 height      = cfg.height;
 dir_base    = cfg.dir_base;
+if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 
 % Image-dependent values (ring period, nPhaseSteps, bgLum) are taken from
 % the makeMT metadata below so they always match the frames on disk.

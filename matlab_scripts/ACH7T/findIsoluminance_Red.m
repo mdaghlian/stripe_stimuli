@@ -12,6 +12,7 @@ warning('on');
 % warning('off','Octave:missing-semicolon');
 % warning ('off','Octave:mixed-string-concat'); 
 dir_base=cfg.dir_base;
+if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 % CHECK INPUTS
 if ~exist('name_subj','var')  
     name_subj='TestSubj';

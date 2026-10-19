@@ -11,6 +11,7 @@ warning('on');
 % warning('off','Octave:missing-semicolon');
 % warning ('off','Octave:mixed-string-concat'); 
 dir_base=cfg.dir_base;
+if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 % CHECK INPUTS
 if ~exist('name_subj','var')  
     name_subj='TestSubj';
@@ -62,10 +63,6 @@ DoneKey=KbName('3#');
 
 % LOGFILE
 % apparently, Octave doesnt support the creation of nested directories
-if isdir(dir_base)==0
-    mkdir(dir_base); 
-end
-
 if isdir([dir_base fs name_subj])==0
     mkdir(dir_base,name_subj); 
 end

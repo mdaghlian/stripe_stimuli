@@ -20,6 +20,7 @@ if ~exist('name_sess', 'var'), name_sess  = 'TestSess';  end
 % Directories
 % -------------------------------------------------------------------------
 dir_base = cfg.dir_base;
+if ~isfolder(dir_base), error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile = [dir_base fs name_subj fs 'mt' fs name_sess fs 'stimuli'];
 if ~isfolder(pathfile), mkdir(pathfile); end
 outFolder = [pathfile fs 'ring_frames'];
