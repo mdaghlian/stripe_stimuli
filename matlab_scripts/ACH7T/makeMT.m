@@ -34,7 +34,7 @@ gh = round(cfg.height * cfg.image_frac);
 
 px_per_cm  = gh / cfg.height_cm;                    % accounts for downsampling
 cm_per_deg = 2 * cfg.distance_cm * tan(deg2rad(0.5));
-px_per_deg = px_per_cm * cm_per_deg;
+px_per_deg = px_per_cm * cm_per_deg;               % in image px (half resolution), not screen px
 
 nPhaseSteps = mt_cfg.nPhaseSteps;
 period_px   = mt_cfg.ringPeriod_deg * px_per_deg;
@@ -71,7 +71,8 @@ stim_params_mt.ringPeriod_deg = mt_cfg.ringPeriod_deg;
 stim_params_mt.nPhaseSteps    = nPhaseSteps;
 stim_params_mt.bgLum          = bgLum;
 stim_params_mt.px_per_cm      = px_per_cm;
-stim_params_mt.px_per_deg     = px_per_deg;
+stim_params_mt.px_per_deg     = px_per_deg;        % image px (kept under this name for older sessions)
+stim_params_mt.px_per_deg_screen = px_per_deg / cfg.image_frac;
 stim_params_mt.timestamp      = datetime('now');
 metafile = [pathfile fs 'logfiles'];
 if ~isfolder(metafile), mkdir(metafile); end

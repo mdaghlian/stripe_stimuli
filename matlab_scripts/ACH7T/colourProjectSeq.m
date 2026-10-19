@@ -213,7 +213,9 @@ try
     %----------------------------------------------------------------------
     % MAIN BLOCK LOOP — iterates over expanded_list
     % Stim entries appear as pairs: [forward half-block, reverse half-block]
-    % cnt is NOT reset between the two so motion reversal is seamless
+    % cnt is NOT reset between the two, so the grating phase is continuous,
+    % but each half-block fades out and back in, so the reversal passes
+    % through the grey background (it is not seamless)
     %----------------------------------------------------------------------
     for b = 1:nBlocks
 
@@ -240,7 +242,8 @@ try
             oName    = "d" + num2str(oriVal);
             imgIndex = idx.(blockLabel).(oName);
             % cnt intentionally NOT reset here — the reverse half-block
-            % picks up exactly where the forward half-block left off
+            % picks up the phase where the forward half-block left off
+            % (after fading out and back in)
         else
             imgIndex = 0;
             dirCode  = 0;

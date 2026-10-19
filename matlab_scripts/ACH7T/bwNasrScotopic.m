@@ -81,7 +81,8 @@ nPhaseSteps = stim_params_scot.nPhaseSteps;
 % A grating is identical under a 180 deg rotation, so the block sequence
 % (which can run past 180) only needs these rendered orientations.
 baseOriList = stim_params_scot.baseOriList;
-px_per_deg  = stim_params_scot.px_per_deg;
+px_per_deg_image  = stim_params_scot.px_per_deg;    % half-resolution image px
+px_per_deg_screen = px_per_deg_image / stim_params_scot.cfg.image_frac;
 
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if ~isfolder(runDir)
@@ -332,7 +333,7 @@ try
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
          'oriSeq', 'BlockList', 'stim_cpd', 'speed_dps', 'reversalTime', ...
-         'px_per_deg', 'nPhaseSteps', 'fix_cfg', '-mat');
+         'px_per_deg_image', 'px_per_deg_screen', 'nPhaseSteps', 'fix_cfg', '-mat');
     fprintf('Run saved to: %s\n', FileName);
 
     analysis_Stability(FileName);

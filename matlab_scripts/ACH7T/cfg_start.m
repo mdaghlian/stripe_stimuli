@@ -55,6 +55,9 @@ findIso_cfg = struct();
 findIso_cfg.nReps = 3; % 3
 findIso_cfg.JitterSize = 10;
 findIso_cfg.nCond1 = 3; % eccentricity bands
+% Band edges as a fraction of screen height (radius). LW's code had .3257
+% for the middle edge (digits transposed?); which was intended is unclear.
+% The outer edge (.6603 H) extends past the half-height on a 16:9 screen.
 findIso_cfg.cond_px_bands = [.1350 .3527 .6603];
 findIso_cfg.ecc_mean = [
     findIso_cfg.cond_px_bands(1)/2
@@ -114,11 +117,11 @@ stim_cfg.Bdirection_per_ori = 2; % 2 directions per orientation
 %% CHEQ
 % --- Spatial frequency ---
 cheq_cfg.stim_cpd = 0.4;      % Radial spatial frequency in cycles per degree
-cheq_cfg.nWedges = 8;      % Radial spatial frequency in cycles per degree
+cheq_cfg.nWedges = 8;      % Angular frequency: sin(nWedges*theta) -> 2*nWedges sectors (16)
 % --- Temporal frequency ---
-cheq_cfg.TF_hz = 4;           % Temporal frequency in Hz (checkerboard reversals per second)
-                               % Each "reversal" flips black<->white, so
-                               % at 8 Hz the pattern inverts 8 times/sec.
+cheq_cfg.TF_hz = 4;           % Contrast reversals per second (not full cycles):
+                               % each reversal flips black<->white, so 4
+                               % reversals/s = 2 Hz full contrast cycle.
 % --- Block timing ---
 cheq_cfg.nBlocks   = 4;      % Total number of ON blocks
 cheq_cfg.BlockTime = 20;      % Duration of each ON (stimulus) block in seconds

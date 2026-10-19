@@ -1,9 +1,9 @@
 function cheqProject(name_subj, name_sess, name_run)
-% checkerProject  Present a flashing checkerboard and record responses.
+% cheqProject  Present a flashing checkerboard and record responses.
 %
-%   checkerProject(name_subj, name_sess, name_run)
+%   cheqProject(name_subj, name_sess, name_run)
 %
-%   The checkerboard reverses at cheq_cfg.TF_hz Hz.
+%   The checkerboard reverses contrast cheq_cfg.TF_hz times per second.
 %   Block timing is controlled by cheq_cfg.BlockTime and cheq_cfg.OffTime.
 
 close all

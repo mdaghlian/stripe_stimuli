@@ -80,7 +80,8 @@ load(metaFile, 'stim_params_mt');
 ringPeriod_deg = stim_params_mt.ringPeriod_deg;
 nPhaseSteps    = stim_params_mt.nPhaseSteps;
 bgLum          = stim_params_mt.bgLum;
-px_per_deg     = stim_params_mt.px_per_deg;
+px_per_deg_image  = stim_params_mt.px_per_deg;    % half-resolution image px
+px_per_deg_screen = px_per_deg_image / stim_params_mt.cfg.image_frac;
 
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if ~isfolder(runDir)
@@ -314,7 +315,7 @@ try
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
-         'BlockList', 'staticFirst', 'mt_cfg', 'fix_cfg', 'px_per_deg', '-mat');
+         'BlockList', 'staticFirst', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
     fprintf('Run saved to: %s\n', FileName);
 
     analysis_Stability(FileName);

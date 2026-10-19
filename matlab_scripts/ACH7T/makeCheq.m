@@ -2,7 +2,7 @@ function makeCheq(name_subj, name_sess)
 % makeCheq  Pre-render the two checkerboard frames (normal + inverted)
 %                   for the flashing checkerboard experiment.
 %
-%   makeCheckerboard(name_subj, name_sess)
+%   makeCheq(name_subj, name_sess)
 
 close all
 cfg_start;
@@ -31,14 +31,13 @@ px_per_cm  = height / cfg.height_cm;
 cm_per_deg = 2 * cfg.distance_cm * tan(deg2rad(0.5));
 deg_per_px = 1 / (px_per_cm * cm_per_deg);  % degrees per pixel
 
-% Radial SF: cheq_cfg.stim_cpd is cycles-per-degree in the radial direction.
-% In log-polar space one "cycle" spans log(2π/stim_cpd) in log-r units.
-% We express it as radial_cycles_per_log_unit below.
+% Radial SF: cheq_cfg.stim_cpd is cycles per degree along the radius,
+% linear in eccentricity (checks do not grow with eccentricity).
 cpd       = cheq_cfg.stim_cpd;                     % cycles per degree (radial)
 px_per_deg = 1 / deg_per_px;
 
 % -------------------------------------------------------------------------
-% Build the checkerboard mask in log-polar space
+% Build the dartboard checkerboard (linear radius x polar angle)
 % -------------------------------------------------------------------------
 [Xm, Ym] = meshgrid(1:width, 1:height);
 cx = width  / 2;
@@ -55,12 +54,8 @@ R_deg = R_px * deg_per_px;          % eccentricity in degrees
 % Angular coordinate
 Theta = atan2(Yc, Xc);             % –π … π
 
-% Number of angular wedges: chosen so that at 1° eccentricity, one wedge
-% subtends roughly the same arc as one radial cycle.
-%   arc_length at 1° ecc = ecc_deg * wedge_angle_rad
-%   set arc ≈ 1/cpd  →  wedge_angle = (1/cpd) / ecc_deg = 1 at ecc=1°
-% A good default is nWedges = round(2 * π * cpd) so the angular period
-% matches the radial period near 1° eccentricity.
+% Angular frequency: sin(nWedges*Theta) changes sign 2*nWedges times
+% around the circle, giving 2*nWedges sectors (nWedges = 8 -> 16).
 nWedges = cheq_cfg.nWedges;
 
 % Radial grating (sign of sin): +1 or -1 per annulus
@@ -72,7 +67,7 @@ angularPart = sin(nWedges * Theta);
 % Checkerboard = product of two orthogonal square waves (via sign)
 checker = sign(radialPart) .* sign(angularPart);
 
-% Clamp centre pixel (log(0) artefact)
+% Centre pixel: polar angle undefined, set to mid-grey
 checker(R_px < 1) = 0;
 
 % Convert to [0, 1]: +1 → white, –1 → black, 0 → mid-grey (centre)
