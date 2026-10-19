@@ -3,7 +3,6 @@ function findIsoluminance_Blue(name_subj,name_sess,name_oldsess)
 close all;
 cfg_start;
 fs=filesep;
-%  1I62W-65GG2-96086-ZC795-3S1S8-997O6
 % DIRECTORY
 warning('off');%suppress annoying warnings because of embedding psychtoolbox folders, Matlab incompatibilities and missing semicolons
 % addpath(genpath(cfg.PTB_dir));
