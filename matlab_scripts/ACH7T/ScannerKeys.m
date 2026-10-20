@@ -1,7 +1,7 @@
 classdef ScannerKeys < handle
-% ScannerKeys  Scanner triggers and participant responses via a PTB KbQueue.
+% ScannerKeys  Scanner triggers and participant responses via PTB KbQueues.
 %
-%   keys = ScannerKeys(triggerKey, detectKey, escapeKey, deviceIndex)
+%   keys = ScannerKeys(triggerKey, detectKey, escapeKey)
 %
 %   At the FIL, scanner triggers arrive as key presses ('5'). KbCheck only
 %   reports whether a key is down at the instant it is called, so brief
@@ -11,11 +11,18 @@ classdef ScannerKeys < handle
 %   however busy the frame loop is; the run script empties it once per
 %   frame with poll().
 %
+%   Keyboard-agnostic: a KbQueue listens to one device, so one queue is
+%   opened on every keyboard found (GetKeyboardIndices) and their events
+%   are merged. The trigger box, button box and the experimenter's
+%   keyboard therefore all work without configuration, as with KbCheck.
+%   On Windows, where PTB merges all keyboards into one device, a single
+%   default queue is used.
+%
 %   All times are on PTB's GetSecs clock, the same clock as the
 %   timestamps returned by Screen('Flip').
 %
 %   Usage in a run script:
-%     keys = ScannerKeys(TriggerSign, DetectKey, escapeKey, cfg.kbIndex);
+%     keys = ScannerKeys(TriggerSign, DetectKey, escapeKey);
 %     t0 = keys.waitForTrigger();      % GetSecs time of the first trigger
 %     % every frame:
 %     [respTimes, escapePressed] = keys.poll(t0);
@@ -25,66 +32,85 @@ classdef ScannerKeys < handle
 %     TriggerTime = keys.triggerTimes(t0);  % s since the first trigger (first = 0)
 %     keys.report(t0, runDuration);         % trigger count / interval QC
 %
-%   deviceIndex: [] uses PTB's default keyboard. If the trigger box shows
-%   up as a separate keyboard, pass its index (see GetKeyboardIndices).
 %   Do not combine with ListenChar(2), which uses a KbQueue itself.
 
     properties
         triggerKey
         detectKey
         escapeKey
-        deviceIndex
+        devices   = {};   % device indices with an open queue ([] = default)
         triggers  = [];   % GetSecs times of all trigger presses
         responses = [];   % GetSecs times of all detect-key presses
     end
 
     methods
-        function obj = ScannerKeys(triggerKey, detectKey, escapeKey, deviceIndex)
-            if nargin < 4, deviceIndex = []; end
-            obj.triggerKey  = triggerKey;
-            obj.detectKey   = detectKey;
-            obj.escapeKey   = escapeKey;
-            obj.deviceIndex = deviceIndex;
+        function obj = ScannerKeys(triggerKey, detectKey, escapeKey)
+            obj.triggerKey = triggerKey;
+            obj.detectKey  = detectKey;
+            obj.escapeKey  = escapeKey;
             keysOfInterest = zeros(1, 256);
             keysOfInterest([triggerKey detectKey escapeKey]) = 1;
-            KbQueueCreate(deviceIndex, keysOfInterest);
+
+            candidates = {};
+            if ~IsWin
+                candidates = num2cell(GetKeyboardIndices);
+            end
+            for k = 1:numel(candidates)
+                try
+                    KbQueueCreate(candidates{k}, keysOfInterest);
+                    obj.devices{end+1} = candidates{k};
+                catch
+                    % some HID devices report as keyboards but refuse a queue
+                end
+            end
+            if isempty(obj.devices)
+                KbQueueCreate([], keysOfInterest);
+                obj.devices = {[]};
+            end
         end
 
         function t0 = waitForTrigger(obj)
-            % Start the queue, discard anything pressed earlier, and block
+            % Start the queues, discard anything pressed earlier, and block
             % until the first trigger. Returns the trigger's own event time.
             % Escape aborts the run with an error.
-            KbQueueStart(obj.deviceIndex);
-            KbQueueFlush(obj.deviceIndex);
+            for k = 1:numel(obj.devices)
+                KbQueueStart(obj.devices{k});
+                KbQueueFlush(obj.devices{k});
+            end
             obj.triggers  = [];
             obj.responses = [];
             t0 = [];
             while isempty(t0)
-                ev = KbQueueGetEvent(obj.deviceIndex, 1);   % waits up to 1 s
-                if isempty(ev) || ~ev.Pressed, continue; end
-                if ev.Keycode == obj.triggerKey
-                    t0 = ev.Time;
-                elseif ev.Keycode == obj.escapeKey
-                    error('ScannerKeys: aborted with Escape while waiting for the trigger.');
+                ev = obj.nextEvents();
+                for e = ev
+                    if e.Keycode == obj.triggerKey
+                        t0 = e.Time;
+                        break
+                    elseif e.Keycode == obj.escapeKey
+                        error('ScannerKeys: aborted with Escape while waiting for the trigger.');
+                    end
                 end
+                if isempty(t0), WaitSecs(0.001); end
             end
             obj.triggers = t0;
+            % presses that arrived with or after the trigger are handled by poll()
+            obj.pending = ev([ev.Time] > t0);
         end
 
         function [respTimes, escapePressed] = poll(obj, t0)
-            % Empty the queue. Triggers are stored; returns detect-key
+            % Empty the queues. Triggers are stored; returns detect-key
             % press times (s since t0) and whether escape was pressed.
             respTimes     = [];
             escapePressed = false;
-            while KbEventAvail(obj.deviceIndex)
-                ev = KbQueueGetEvent(obj.deviceIndex);
-                if ~ev.Pressed, continue; end   % ignore key releases
-                switch ev.Keycode
+            ev = [obj.pending obj.nextEvents()];
+            obj.pending = [];
+            for e = ev
+                switch e.Keycode
                     case obj.triggerKey
-                        obj.triggers(end+1) = ev.Time;
+                        obj.triggers(end+1) = e.Time;
                     case obj.detectKey
-                        obj.responses(end+1) = ev.Time;
-                        respTimes(end+1) = ev.Time - t0; %#ok<AGROW>
+                        obj.responses(end+1) = e.Time;
+                        respTimes(end+1) = e.Time - t0; %#ok<AGROW>
                     case obj.escapeKey
                         escapePressed = true;
                 end
@@ -92,8 +118,10 @@ classdef ScannerKeys < handle
         end
 
         function release(obj)
-            KbQueueStop(obj.deviceIndex);
-            KbQueueRelease(obj.deviceIndex);
+            for k = 1:numel(obj.devices)
+                KbQueueStop(obj.devices{k});
+                KbQueueRelease(obj.devices{k});
+            end
         end
 
         function t = triggerTimes(obj, t0)
@@ -105,6 +133,7 @@ classdef ScannerKeys < handle
             % trigger-to-trigger interval.
             t = obj.triggerTimes(t0);
             fprintf('\n--- Scanner triggers ---\n');
+            fprintf('Keyboard queues: %d\n', numel(obj.devices));
             fprintf('Triggers received: %d\n', numel(t));
             fprintf('Responses received: %d\n', numel(obj.responses));
             if numel(t) < 3
@@ -123,7 +152,32 @@ classdef ScannerKeys < handle
                 fprintf('  Gap of %.3f s after trigger %d (t = %.3f s)\n', iti(g), g, t(g));
             end
             if any(iti < 0.5*TR)
-                fprintf('  %d intervals < 0.5 x TR: slice triggers or double presses?\n', sum(iti < 0.5*TR));
+                fprintf('  %d intervals < 0.5 x TR: slice triggers, double presses, or the same key on two keyboards?\n', sum(iti < 0.5*TR));
+            end
+        end
+    end
+
+    properties (Access = private)
+        pending = [];   % events read by waitForTrigger after the first trigger
+    end
+
+    methods (Access = private)
+        function ev = nextEvents(obj)
+            % All key-press events waiting in every queue, in time order.
+            ev = [];
+            for k = 1:numel(obj.devices)
+                d = obj.devices{k};
+                while KbEventAvail(d)
+                    e = KbQueueGetEvent(d);
+                    if e.Pressed   % ignore key releases
+                        e = struct('Time', e.Time, 'Keycode', e.Keycode);
+                        ev = [ev e]; %#ok<AGROW>
+                    end
+                end
+            end
+            if ~isempty(ev)
+                [~, i] = sort([ev.Time]);
+                ev = ev(i);
             end
         end
     end

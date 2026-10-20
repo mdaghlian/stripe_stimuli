@@ -182,7 +182,7 @@ try
     % --- Wait for trigger ---
     % Key queue: logs every trigger and response with its own GetSecs time
     % (see ScannerKeys.m). t0 = first trigger = time zero of the run.
-    keys = ScannerKeys(TriggerSign, DetectKey, escapeKey, cfg.kbIndex);
+    keys = ScannerKeys(TriggerSign, DetectKey, escapeKey);
     t0   = keys.waitForTrigger();
 
     % --- Start timing: all run times are GetSecs - StartTime (s since trigger 1) ---

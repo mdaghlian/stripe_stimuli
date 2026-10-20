@@ -279,7 +279,7 @@ try
     
     % wait for trigger command (key queue: logs every trigger and response
     % with its own GetSecs time; see ScannerKeys.m)
-    keys=ScannerKeys(TriggerSign,DetectKey,escapeKey,cfg.kbIndex);
+    keys=ScannerKeys(TriggerSign,DetectKey,escapeKey);
     t0=keys.waitForTrigger();%GetSecs time of the first trigger = time zero of the run
     
     % flip start screen after trigger (fixation task starts)
