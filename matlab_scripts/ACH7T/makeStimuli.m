@@ -98,20 +98,45 @@ R_min=findIso_cfg.ecc_mean(1)*cfg.height;
 R_max=findIso_cfg.ecc_mean(end)*cfg.height;
 R=log(min(max(R,R_min),R_max));
 
-% CALCULATE WEIGHTINGS
-% BW peak = 2 x the grey matched to full blue, so the BW grating (0 to peak)
-% has a MEAN drive equal to the matched grey, as in Nasr's and LW's
-% generators (removed without comment in 07b05c4, restored here). Without
-% the x2 the BW grating peaks at the matched grey: half the contrast and a
-% lower mean than the colour grating. Where 2 x grey exceeds 255 the clip
-% below lowers the mean again.
-fxn1=polyval(bwParams,R)*2;
-fxn1(fxn1>255)=255;
-fxn1(fxn1<0)=0;
+% DISPLAY MODEL (cal_cfg in cfg_start): drive <-> luminance per channel
+model=displayModel(cal_cfg);
+fprintf('Display model: %s\n', model.description);
 
-fxn2=polyval(redParams,R);
-fxn2(fxn2>255)=255;
-fxn2(fxn2<0)=0;
+% FLICKER MATCHES -> LUMINANCE
+% The isoluminance tasks give drive values (per pixel, via the fits):
+%   greyMatch: grey (R=G=B) drive that matched blue at full drive
+%   redMatch:  red drive that matched that grey
+% Converted to luminance with the display model, the stimuli are then built
+% in linear luminance and converted back to drive per channel, so that the
+% observer's match holds at every phase of the grating, not only at the
+% peaks. With cal_cfg.type = 'linear' this reduces to the old drive-unit
+% stimuli.
+greyMatch=polyval(bwParams,R);
+greyMatch=min(max(greyMatch,0),255);
+redMatch=polyval(redParams,R);
+redMatch=min(max(redMatch,0),255);
+
+LB=model.dL('B',255);           % blue reference: full drive (on its plateau beyond the clip)
+LR=model.dL('R',redMatch);      % red peak luminance, isoluminant with LB for this observer
+Lgrey=model.dL('W',greyMatch);  % grey luminance isoluminant with LB for this observer
+
+% BW grating: 0 to 2 x Lgrey, sinusoidal in LUMINANCE, so its mean
+% luminance equals the matched grey, i.e. the colour grating's luminance
+% for this observer (the x2 of Nasr's/LW's generators, applied in
+% luminance rather than in drive).
+if any(2*Lgrey(:) > model.dLmax.W)
+    warning('makeStimuli: BW peak (2 x matched grey) exceeds the W maximum at %.1f%% of pixels; clipped there.', ...
+        100*mean(2*Lgrey(:) > model.dLmax.W));
+end
+
+% Record the model and luminance summary with the stimulus parameters
+modelInfo=rmfield(model,intersect(fieldnames(model),{'dL','d','L'}));
+stim_params.displayModel=modelInfo;
+stim_params.LB=LB;
+stim_params.Lgrey_range=[min(Lgrey(:)) max(Lgrey(:))];
+stim_params.LR_range=[min(LR(:)) max(LR(:))];
+stim_params.greyDrive_matched_median=model.d('W',median(Lgrey(:)));   % background drive matching the stimuli (for later use)
+save(stim_file, 'stim_params');
 
 % GRATING
 counter=1;
@@ -140,23 +165,23 @@ for t=1:length(thetaList)
         grating=sin(Xp+phaseRad);%make 2D sinewave
         grating=(grating-min(grating(:)))/(max(grating(:))-min(grating(:)));%normalise to [0,1]
 
-        % apply weighting (achromatic)
-        BWgrating=grating.*fxn1;
+        % achromatic: luminance 2*Lgrey*g -> drive
+        BWgrating=model.d('W',2*Lgrey.*grating);
         
         % output
         outPicBW=[outFolderBW fs sprintf('%d',step) '.png'];
         imwrite(uint16((BWgrating/255)*65535),outPicBW,'PNG');
     
-        % apply weighting (blue)    
-        blueGrating=grating*255;      
+        % blue: luminance LB*g -> drive (peaks at blue's clip point, not 255)
+        blueGrating=model.d('B',LB*grating);
         
         % apply phase step 
         phaseRad=(phaseStep*step+.5)*2*pi;
         grating=sin(Xp+phaseRad);%make 2D sinewave
         grating=(grating-min(grating(:)))/(max(grating(:))-min(grating(:)));%normalise to [0,1]
     
-        % apply weighting (red)
-        redGrating=grating.*fxn2;
+        % red (antiphase): luminance LR*(1-g) -> drive
+        redGrating=model.d('R',LR.*grating);
     
         % define colour grating
         colourGrating=zeros(height,width,3);
