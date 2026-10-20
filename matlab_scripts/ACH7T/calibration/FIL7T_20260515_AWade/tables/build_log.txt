@@ -1,0 +1,21 @@
+Method: AW estimate_luminance.luminance_index, settings {'count_basis': 'energy', 'subtract_dark': True, 'clip_negative': False}
+Spectral correction: original/noFilter/noFilter_spectra_fullDrive_fibreCorrected.csv
+Reference: noFilter W drive 1.0 = 952.0 cd/m^2 -> scale 1978.78339 cd/m^2 per index
+  1xNDFilter correction factor identical: True
+  2xNDFilter correction factor identical: True
+  3xNDFilter correction factor identical: True
+
+run         integration  levels  AW raw-count curve reproduced (max |diff|, counts)  W@255 (cd/m^2)  AW notes
+noFilter          30 ms     32     0                                            952.000      944-967 (mean 952)
+1xNDFilter       240 ms     16     0                                            143.813      ~143
+2xNDFilter      1920 ms     16     0                                             16.759      ~17-21
+3xNDFilter     15360 ms     16     0                                              2.317      ~1.8-2.5
+
+V-weighted R:G:B shares at full drive (noFilter)
+  from AW fibre-corrected spectra file : 0.118 0.851 0.031
+  from these tables                    : 0.115 0.857 0.027
+
+wrote tables/cal_FIL7T_20260515_noFilter.csv  (R G B W at 255: 111.9 832.5 26.54 952 cd/m^2)
+wrote tables/cal_FIL7T_20260515_1xNDFilter.csv  (R G B W at 255: 14.19 125.3 3.953 143.8 cd/m^2)
+wrote tables/cal_FIL7T_20260515_2xNDFilter.csv  (R G B W at 255: 2.132 14.86 1.053 16.76 cd/m^2)
+wrote tables/cal_FIL7T_20260515_3xNDFilter.csv  (R G B W at 255: 0.1899 2.074 0.06641 2.317 cd/m^2)
