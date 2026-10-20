@@ -116,6 +116,22 @@ Two consequences:
 - The luminance of the R + B mixtures in the colour grating **cannot be predicted** from the single-channel curves; it has to be checked (Section 5, step 1b).
 - Grey (R = G = B) must use the measured W curve, not the sum of R, G and B.
 
+**Note: how likely are red and blue to add?** No measurement of red + blue mixtures on this projector model was found, either published or in Alex's calibrations of the 7T (May 2026) and 3T (July 2025) Epsons, which measured single channels and white only. The evidence points both ways.
+
+- **For additivity:**
+  - **The optics are additive.** 3LCD projectors combine three separate LCD panels in a prism, with no colour wheel or white segment. LCD projectors are generally reported to be additive to within a fraction of a percent, unlike single-chip DLP (see the LCD/DLP characterisation literature in the references). The data agree at full drive: R + G + B = 1.02 × W.
+  - **The colour grating never uses green** (G = 0 everywhere), so every pixel is a fully saturated colour, like a pure primary. If the boost below full drive depends on saturation, red + blue mixtures get the same treatment as red or blue alone, and the single-channel tables add correctly.
+- **Against:** the non-additivity below full drive is large and present on both installations measured with the same method (Alex's luminance code):
+
+  | | (R+G+B)/W at mid drives | At full drive | G / B stop rising at |
+  |---|---|---|---|
+  | 7T (15 May 2026) | 1.51–1.64 | 1.02 | 206 / 222 |
+  | 3T Quattro (16 Jul 2025) | 1.42–1.60 | 1.00 | ≈ 204–238 |
+
+  This is how the model behaves in its standard configuration. It comes from image processing rather than the optics, and the mechanism is unknown. If it depends on saturation, red + blue add. If it depends on something else (e.g. the overall brightness of the frame, or a colour-space mapping that treats magenta differently from red and blue), they may not.
+
+**Estimate:** probably close to additive for the G = 0 grating, but not safe to assume. A 10% shortfall would leave a residual of about 0.06, the largest remaining error, so the flicker-based check (Section 5, step 1b) is worth its few minutes of scanner time.
+
 ### 2.4 Filters
 
 | Filters stacked | W at 255 (cd/m²) | Total attenuation | Attenuation of the last filter |
@@ -167,6 +183,8 @@ Built in linear luminance instead, a BW grating from 0 to 2 × 26.6 = 53 cd/m² 
 
 Grey 128 is about **209 cd/m²**, about 10 × the stimuli. Each rest ↔ stimulus change, and each block boundary (the fades pass through the background), is a full-field luminance step of roughly that size. The grey with the same luminance as the colour grating is drive ≈ **52**.
 
+Matching the mean luminance of the colour grating, the BW grating and the rest periods has not been achieved in earlier implementations of this paradigm, including the ACH7T pilot: their means differed from one another and from the rest grey by large factors. Building all three around one luminance anchor (Section 5, step 3) addresses this.
+
 ### 3.4 Display state
 
 The flicker tasks load an identity gamma table. The run scripts load none, so they run under whatever the OS has loaded. Both must use the identity table, the state in which the display was measured.
@@ -207,7 +225,7 @@ design:         every stimulus and the background in linear units -> drive at th
 | Chain of matches | blue ↔ grey, then red ↔ that grey | **Avoidable.** Two matches compound errors, and grey is where the projector is least additive. Match red to blue directly; use a separate grey ↔ blue match only for the BW control and the background. |
 | Display state | identity table in the flicker task, OS table in the experiment | **Make consistent:** identity table throughout, standard projector configuration. |
 | Flicker-task surround | black | **Match the experiment:** a surround at the background luminance. |
-| Where the flicker task is done | not fixed in ACH7T; Nasr did it **in the scanner, just before the functional runs** | **Do it in the scanner,** through the same projector and mirror. That also absorbs chromatic non-uniformity at each band. |
+| Where the flicker task is done | **in the scanner** (as in the ACH7T pilot), as Nasr did just before the functional runs | **Right; keep it.** Same projector, mirror and viewing conditions as the experiment, and it absorbs chromatic non-uniformity at each band. |
 | Flicker frequency | 30 Hz (refresh / 2), as in Nasr | Pilot against 15 Hz (Section 5, step 2). |
 | Eccentricity model | linear in log(eccentricity) through 3 points, clamped | Acceptable; keep the outer band on screen. |
 | BW and background luminance | defined in drive units | **Define in luminance** around one anchor (Section 5, step 3). |
@@ -261,7 +279,7 @@ If R + B turns out to be clearly non-additive, measure the R–B plane (G = 0) o
 
 ### Step 2. Psychophysics in linear units, in the scanner
 
-Two **independent, single-stage** matches, both made in the scanner just before the functional runs, on a surround at the background luminance (step 3), at each eccentricity band:
+Two **independent, single-stage** matches, both made in the scanner just before the functional runs (as the flicker task already is, e.g. in the pilot), on a surround at the background luminance (step 3), at each eccentricity band:
 
 | Match | Reference | Adjusted | Used for |
 |---|---|---|---|
@@ -377,6 +395,8 @@ Checked for this document:
 - Wade A. oceanoptics-public: display calibration with an Ocean Optics spectrometer. [github.com/wadelab/oceanoptics-public](https://github.com/wadelab/oceanoptics-public) (commit `ed9b9fa`).
 - Psychtoolbox-3, `PsychColorCorrection.m` (`LookupTable`, `LookupTable3D`).
 - [York University, Heterochromatic flicker photometry](https://www.yorku.ca/eye/hfp.htm).
+- Colorimetric characterisation of LCD and DLP projection displays (ResearchGate record). [link](https://www.researchgate.net/publication/245413681_Colorimetric_characterization_of_LCD_and_DLP_projection_displays)
+- Characterisation of a desktop LCD projector. *Displays* (2000). [link](https://www.sciencedirect.com/science/article/abs/pii/S0141938200000494)
 
 Standard references, cited from memory (†):
 
