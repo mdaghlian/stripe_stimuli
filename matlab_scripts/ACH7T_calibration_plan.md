@@ -263,7 +263,8 @@ Flicker photometry is additive (Abney's law holds for it; Wagner & Boynton 1972)
 Interpretation:
 
 - ***m* within about ±3% of 1:** additive; use the per-channel model.
-- ***m* clearly different from 1:** use the measured *m*(g) as a correction in `makeStimuli` (scale the mixture by 1/*m*(g)).
+- ***m* clearly different from 1:** use the measured *m*(g) as a correction: with `cal_cfg.rbCorrection = true`, `makeStimuli` multiplies the colour grating's luminance at blue fraction g by *m*(g). (*m* > 1 means the mixture had to be raised, i.e. the display gives less than the sum.)
+- **Implemented** as `checkAdditivityRB(subj, sess)` (settings: `rbcheck_cfg`). It saves `RBadditivity_<time>.mat` in the session's `stimuli/logfiles`.
 - **Reference:** R + B mixtures at 90% of the sum would leave a residual of about 0.06 if not corrected.
 
 **1c. Refine with a spectroradiometer when one is available:**
@@ -364,11 +365,11 @@ After linearisation, the precision of the flicker match is the dominant term, so
 
 | # | Change | Status / depends on |
 |---|---|---|
-| 1 | `cal_FIL7T.m` + Alex's data, code and tables (step 1a) | **done** (this branch) |
-| 2 | Flicker-based R + B additivity check (step 1b), added to the flicker task | 1; a few minutes of scanner time |
+| 1 | Display model: Alex's data, code and tables; `cal_FIL7T.m`; `displayModel.m` (measured tables, any table file, or gamma values per channel or across, with clip points), selected by `cal_cfg` (step 1a) | **done** (`b3ecb62`, `11aae5b`) |
+| 2 | Flicker-based R + B additivity check (step 1b): `checkAdditivityRB.m`, with optional correction in `makeStimuli` (`cal_cfg.rbCorrection`) | **done** (`b0309c3`); run it in the scanner (a few minutes) |
 | 3 | Flicker task rewrite: red ↔ blue and grey ↔ blue single-stage matches, linear-luminance steps, frame-by-frame rendering, surround at the background luminance, 15 or 30 Hz (piloted), ≥ 4 repetitions per band with SD reported, bands within the screen | 1 |
-| 4 | `makeStimuli`: colour, BW and background built in linear units around L<sub>grey</sub> (step 3), converted per channel (option A) | 1, 3 |
-| 5 | Run scripts: identity gamma table, background from L<sub>grey</sub>, table restored on exit | 4 |
+| 4 | `makeStimuli`: colour, BW and background built in linear units around L<sub>grey</sub> (step 3), converted per channel (option A) | **colour and BW done** (`daef28a`): the gratings are built in luminance from the existing flicker matches. Background still grey 128; the matching grey drive is saved in `stim_params` |
+| 5 | Run scripts: identity gamma table, background from L<sub>grey</sub>, table restored on exit | **identity table done** (`5a812d5`); background to do |
 | 6 | Validation: minimum-motion check (step 4); physical measurement and cone contrasts when possible | 4, 5 |
 | 7 | Later: linear rendering (option B) and luminance-neutral cross-fades | 5 |
 
