@@ -156,7 +156,7 @@ stim_params.displayModel=modelInfo;
 stim_params.LB=LB;
 stim_params.Lgrey_range=[min(Lgrey(:)) max(Lgrey(:))];
 stim_params.LR_range=[min(LR(:)) max(LR(:))];
-stim_params.greyDrive_matched_median=model.d('W',median(Lgrey(:)));   % background drive matching the stimuli (for later use)
+stim_params.background=backgroundLuminance(name_subj,name_sess);   % background/rest level used by colourProject
 save(stim_file, 'stim_params');
 
 % GRATING

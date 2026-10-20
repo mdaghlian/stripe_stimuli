@@ -228,9 +228,20 @@ fprintf('Duration: %d min %d sec\n', totalMins, remainSecs);
 fprintf('Blocks:   %d active + delay periods\n', nBlocks);
 
 
+% BACKGROUND / REST LEVEL: the matched grey saved with the stimuli (makeStimuli)
+metaFiles=dir([pathfile fs 'stimuli' fs 'logfiles' fs 'stim_metadata_*.mat']);
+if isempty(metaFiles), error('No stim_metadata in %s. Run makeStimuli first.', [pathfile fs 'stimuli' fs 'logfiles']); end
+[~,newest]=max([metaFiles.datenum]);
+sp=load([pathfile fs 'stimuli' fs 'logfiles' fs metaFiles(newest).name],'stim_params'); sp=sp.stim_params;
+if ~isfield(sp,'background')
+    error('Stimuli in %s were made before gamma correction (no background in %s). Regenerate them with makeStimuli.', [pathfile fs 'stimuli'], metaFiles(newest).name);
+end
+bgDrive=round(sp.background.drive);
+fprintf('Background / rest: W drive %d (%s)\n', bgDrive, sp.background.source);
+
 % FIXATION TASK (fix_cfg in cfg_start)
 fixTask=FixationTask(fix_cfg,width,height);
-Image=uint8(128*ones(height,width));%grey background
+Image=uint8(bgDrive*ones(height,width));%matched grey background
 
 % OPEN PSYCHTOOLBOX WINDOW
 try

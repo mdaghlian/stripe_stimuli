@@ -115,6 +115,9 @@ cal_cfg.filter = 'noFilter';   % FIL7T: 'noFilter', '1xNDFilter', '2xNDFilter', 
 %                            cal_cfg.clip  = [255 206 222 255];     % drive where each channel stops rising (R G B W)
 %                            cal_cfg.Lmax  = [111.9 830 26.5 952];  % luminance at the clip (relative units are fine)
 %   cal_cfg.type = 'linear';                                        % no gamma correction (stimuli in drive units)
+cal_cfg.background = 'matched';  % background/rest luminance of ALL paradigms (backgroundLuminance.m):
+                                 % 'matched' = grey matched to the colour grating (colour-session flicker fits),
+                                 % or a number = fixed luminance in display-model units (cd/m^2 for FIL7T)
 cal_cfg.rbCorrection = false;  % true: makeStimuli scales the colour grating by the measured
                                % R+B additivity m(g) (latest RBadditivity_*.mat of the session)
 

@@ -53,7 +53,8 @@ key3      = KbName('3#');
 fixIdle  = FixationTask(fix_cfg, width, height);
 fixShown = FixationTask(fix_cfg, width, height);
 fixShown.start();
-BGimage = uint8(128 * ones(height, width));
+bg = backgroundLuminance(name_subj, name_sess);   % matched grey (falls back to the standard observer)
+BGimage = uint8(round(bg.drive) * ones(height, width));
 
 % -------------------------------------------------------------------------
 % PTB open
