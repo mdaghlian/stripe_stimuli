@@ -69,7 +69,7 @@ stim_params.redParams = redParams;
 stim_params.eccClamp_px = findIso_cfg.ecc_mean([1 end])*cfg.height; % full-screen px; weights constant outside
 % Generate a filename
 filename = sprintf('stim_metadata_%s.mat', datestr(now, 'yyyy-mm-dd_HHMM'));
-stim_params.note = "NOTE based on IMAGE FRAC";
+stim_params.note = 'NOTE based on IMAGE FRAC';
 % Save the struct to a mat file
 stim_file=[pathfile fs 'logfiles' fs filename];
 save(stim_file, 'stim_params');
