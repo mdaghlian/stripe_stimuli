@@ -143,6 +143,8 @@ try
     wptr = Screen('OpenWindow', screenid);
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
+    Priority(MaxPriority(wptr));
 
     %----------------------------------------------------------------------
     % LOAD STIMULI
@@ -186,7 +188,7 @@ try
     fixTask.start();
     Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
     fixTask.draw(wptr);
-    Screen('Flip', wptr);
+    vbl = Screen('Flip', wptr);
 
     StartTime        = t0;   % all run times are GetSecs - StartTime (s since trigger 1)
 
@@ -205,6 +207,15 @@ try
 
     img_count      = 0;
     cnt            = 1;   % current grating frame step (persists across half-blocks)
+    % Frame timing: each frame's stimulus is computed for tF, its predicted
+    % onset (previous flip + one refresh interval, s since trigger 1). Drift
+    % phase accumulates stepsPerSec*dtF and is rounded to a step: a whole
+    % number of steps per frame at the expected refresh rate (smooth), and
+    % after a dropped frame it skips ahead, so speed and phase stay right.
+    stepsPerSec    = stim_cfg.TF_hz * nSteps;   % phase steps per second
+    stepPos        = 0;
+    tPrev          = vbl + ifi - StartTime;
+    blockStart     = 0;   % nominal block onsets, so frame overruns do not accumulate
     escapePressed  = false;
 
     %----------------------------------------------------------------------
@@ -221,8 +232,6 @@ try
 
         blockDur = BlockTime;
         if isRestBlock, blockDur = DelayTime; end
-
-        blockStart = GetSecs - StartTime;
 
         % Log onset on rest blocks and on the forward half of each stim pair
         if isRestBlock || (~isnan(dir_seq(b)) && dir_seq(b) == +1)
@@ -255,10 +264,12 @@ try
         %------------------------------------------------------------------
         % INNER FRAME LOOP
         %------------------------------------------------------------------
-        while (GetSecs - StartTime) - blockStart < blockDur
-
-            tNow     = GetSecs - StartTime;
+        while true
+            tNow     = vbl + ifi - StartTime;   % predicted onset of this frame
             tInBlock = tNow - blockStart;
+            if tInBlock >= blockDur, break; end
+            dtF      = tNow - tPrev;
+            tPrev    = tNow;
 
             fixTask.update(tNow);
 
@@ -286,18 +297,16 @@ try
                 end
 
                 % Advance grating frame in the current direction
-                if dirCode > 0
-                    cnt = cnt - 1; if cnt < 1,      cnt = nSteps; end
-                else
-                    cnt = cnt + 1; if cnt > nSteps, cnt = 1;      end
-                end
+                % (dirCode > 0 steps the frames backwards, as before)
+                stepPos = stepPos - sign(dirCode) * stepsPerSec * dtF;
+                cnt     = mod(round(stepPos), nSteps) + 1;
 
                 Screen('DrawTexture', wptr, textureIndex(1), [], [0 0 width height]);
                 Screen('DrawTexture', wptr, gratingTexture(imgIndex, cnt), [], [0 0 width height], [], [], alphaImg);
                 fixTask.draw(wptr);
             end
 
-            [~, onsetT] = Screen('Flip', wptr);
+            [vbl, onsetT] = Screen('Flip', wptr);
             nLog = nLog + 1;
             LogData(nLog, :) = [tNow, b, imgIndex, cnt, alphaImg, dirCode*(~isRestBlock), onsetT - t0];
 
@@ -322,6 +331,7 @@ try
         end  % end inner frame loop
 
         if escapePressed, break; end
+        blockStart = blockStart + blockDur;
 
     end  % end block loop
     LogData = LogData(1:nLog, :);
@@ -340,6 +350,7 @@ try
         if KeyCode(escapeKey), exitFlag = 1; end
     end
 
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     Screen('Preference','VisualDebugLevel',    oldVisualDebugLevel);
@@ -368,6 +379,7 @@ try
 
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     rethrow(err);

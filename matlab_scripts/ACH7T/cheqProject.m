@@ -120,6 +120,8 @@ try
     wptr   = Screen('OpenWindow', screenid);
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
+    Priority(MaxPriority(wptr));
 
     % --- Load checkerboard frames ---
     img0 = double(imread([stimPath fs 'frame0.png'])) / 65535;
@@ -148,7 +150,7 @@ try
     fixTask.start();
     Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
     fixTask.draw(wptr);
-    Screen('Flip', wptr);
+    vbl = Screen('Flip', wptr);
 
     % ---- Log structures ----
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
@@ -160,8 +162,10 @@ try
     % -----------------------------------------------------------------------
     % Main loop
     % -----------------------------------------------------------------------
+    % Frame timing: each frame is computed for its predicted onset (previous
+    % flip + one refresh interval), so reversals fall on exact frames.
     while true
-        elapsed = GetSecs - StartTime;
+        elapsed = vbl + ifi - StartTime;   % predicted onset of this frame
         if elapsed >= totalDuration, break; end
 
         % --- Determine current block ---
@@ -175,8 +179,8 @@ try
             cumT = cumT + BlockList(b).duration;
         end
 
-        % --- Determine which checkerboard phase (based on wall time) ---
-        phaseIndex = mod(floor(elapsed / reversalPeriod), 2) + 1;
+        % --- Determine which checkerboard phase (from the frame onset time) ---
+        phaseIndex = mod(floor(elapsed / reversalPeriod + 1e-6), 2) + 1;   % +1e-6: timestamp jitter at a boundary
         % phaseIndex = 1 → frame0 (normal), 2 → frame1 (inverted)
 
         % --- Draw ---
@@ -189,7 +193,7 @@ try
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        [~, onsetT] = Screen('Flip', wptr);
+        [vbl, onsetT] = Screen('Flip', wptr);
 
         % --- Log ---
         isOn = strcmp(currentBlock.type,'on');
@@ -229,6 +233,7 @@ try
         if KeyCode(escapeKey), exitFlag = 1; end
     end
 
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     Screen('Preference','VisualDebugLevel',   oldVDL);
@@ -260,6 +265,7 @@ try
 
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     rethrow(err);

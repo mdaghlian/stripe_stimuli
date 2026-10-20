@@ -77,6 +77,13 @@ if exist(metaFile,'file')~=2
     makeMT(name_subj, name_sess);
 end
 load(metaFile, 'stim_params_mt');
+if stim_params_mt.nPhaseSteps ~= mt_cfg.nPhaseSteps
+    % e.g. stimuli made before nPhaseSteps was chosen for a whole number of steps per frame
+    fprintf('MT stimuli in %s have %d phase steps, mt_cfg.nPhaseSteps is %d - rebuilding them.\n', ...
+        stimPath, stim_params_mt.nPhaseSteps, mt_cfg.nPhaseSteps);
+    makeMT(name_subj, name_sess);
+    load(metaFile, 'stim_params_mt');
+end
 ringPeriod_deg = stim_params_mt.ringPeriod_deg;
 nPhaseSteps    = stim_params_mt.nPhaseSteps;
 bgLum          = stim_params_mt.bgLum;
@@ -153,6 +160,7 @@ try
     wptr   = Screen('OpenWindow', screenid);
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
     Priority(MaxPriority(wptr));
 
     % --- Ring textures ---
@@ -179,13 +187,12 @@ try
 
     % --- Start timing: all run times are GetSecs - StartTime (s since trigger 1) ---
     StartTime        = t0;
-    lastFrameTime    = t0;
 
     % Post-trigger flip (fixation task starts)
     fixTask.start();
     Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
     fixTask.draw(wptr);
-    Screen('Flip', wptr);
+    vbl = Screen('Flip', wptr);
 
     % ---- Log structures ----
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
@@ -194,19 +201,24 @@ try
     nLog         = 0;
     img_count    = 0;
 
-    % Continuous ring position (real-time based, robust to frame rate)
-    distanceDeg = 0;     % signed radial distance travelled, deg
+    % Frame timing: each frame's stimulus is computed for tF, its predicted
+    % onset (previous flip + one refresh interval, s since trigger 1). Drift
+    % phase accumulates stepsPerSec*dtF and is rounded to a step: a whole
+    % number of steps per frame at the expected refresh rate (smooth), and
+    % after a dropped frame it skips ahead, so speed and phase stay right.
+    stepsPerSec = speed_dps / ringPeriod_deg * nPhaseSteps;   % phase steps per second
+    stepPos     = 0;
+    tPrev       = vbl + ifi - StartTime;
     phaseIdx    = 1;
 
     % -----------------------------------------------------------------------
     % Main loop
     % -----------------------------------------------------------------------
     while true
-        nowTime = GetSecs;
-        elapsed = nowTime - StartTime;
+        elapsed = vbl + ifi - StartTime;   % predicted onset of this frame
         if elapsed >= totalDuration, break; end
-        dt = nowTime - lastFrameTime;
-        lastFrameTime = nowTime;
+        dtF   = elapsed - tPrev;
+        tPrev = elapsed;
 
         % --- Determine current block ---
         cumT = 0;
@@ -238,15 +250,14 @@ try
                 segIdx    = floor(localElapsed / reversalTime);
                 direction = startDir * (-1) ^ segIdx;
 
-                distanceDeg = distanceDeg + direction * speed_dps * dt;
-                phaseCycles = distanceDeg / ringPeriod_deg;
-                phaseIdx    = mod(floor(phaseCycles * nPhaseSteps), nPhaseSteps) + 1;
+                stepPos  = stepPos + direction * stepsPerSec * dtF;
+                phaseIdx = mod(round(stepPos), nPhaseSteps) + 1;
                 Screen('DrawTexture', wptr, ringTex(phaseIdx), [], [0 0 width height]);
         end
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        [~, onsetT] = Screen('Flip', wptr);
+        [vbl, onsetT] = Screen('Flip', wptr);
 
         % --- Log ---
         nLog = nLog + 1;

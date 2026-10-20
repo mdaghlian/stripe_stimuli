@@ -76,6 +76,13 @@ if exist(metaFile,'file')~=2
     makeScotopic(name_subj, name_sess);
 end
 load(metaFile, 'stim_params_scot');
+if stim_params_scot.nPhaseSteps ~= scot_cfg.nPhaseSteps
+    % e.g. stimuli made before nPhaseSteps was chosen for a whole number of steps per frame
+    fprintf('scotopic stimuli in %s have %d phase steps, scot_cfg.nPhaseSteps is %d - rebuilding them.\n', ...
+        stimPath, stim_params_scot.nPhaseSteps, scot_cfg.nPhaseSteps);
+    makeScotopic(name_subj, name_sess);
+    load(metaFile, 'stim_params_scot');
+end
 stim_cpd    = stim_params_scot.stim_cpd;
 nPhaseSteps = stim_params_scot.nPhaseSteps;
 % A grating is identical under a 180 deg rotation, so the block sequence
@@ -160,6 +167,8 @@ try
     wptr   = Screen('OpenWindow', screenid);
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
+    Priority(MaxPriority(wptr));
 
     % --- Grating textures ---
     gratingTex = zeros(length(baseOriList), nPhaseSteps);
@@ -187,13 +196,12 @@ try
 
     % --- Start timing: all run times are GetSecs - StartTime (s since trigger 1) ---
     StartTime        = t0;
-    lastFrameTime     = t0;
 
     % Post-trigger flip (fixation task starts)
     fixTask.start();
     Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
     fixTask.draw(wptr);
-    Screen('Flip', wptr);
+    vbl = Screen('Flip', wptr);
 
     % ---- Log structures ----
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
@@ -202,19 +210,24 @@ try
     nLog         = 0;
     img_count    = 0;
 
-    % Continuous drift state (real-time based, robust to actual frame rate)
-    distanceDeg  = 0;    % signed distance travelled along motion axis, deg
+    % Frame timing: each frame's stimulus is computed for tF, its predicted
+    % onset (previous flip + one refresh interval, s since trigger 1). Drift
+    % phase accumulates stepsPerSec*dtF and is rounded to a step: a whole
+    % number of steps per frame at the expected refresh rate (smooth), and
+    % after a dropped frame it skips ahead, so speed and phase stay right.
+    stepsPerSec = speed_dps * stim_cpd * nPhaseSteps;   % phase steps per second
+    stepPos     = 0;
+    tPrev       = vbl + ifi - StartTime;
     phaseIdx     = 1;
 
     % -----------------------------------------------------------------------
     % Main loop
     % -----------------------------------------------------------------------
     while true
-        nowTime = GetSecs;
-        elapsed = nowTime - StartTime;
+        elapsed = vbl + ifi - StartTime;   % predicted onset of this frame
         if elapsed >= totalDuration, break; end
-        dt = nowTime - lastFrameTime;
-        lastFrameTime = nowTime;
+        dtF   = elapsed - tPrev;
+        tPrev = elapsed;
 
         % --- Determine current block ---
         cumT = 0;
@@ -240,9 +253,8 @@ try
             startSign = (-1) ^ (currentBlock.stimNum - 1);
             direction = startSign * (-1) ^ segIdx;
 
-            distanceDeg = distanceDeg + direction * speed_dps * dt;
-            phaseCycles = distanceDeg * stim_cpd;
-            phaseIdx    = mod(floor(phaseCycles * nPhaseSteps), nPhaseSteps) + 1;
+            stepPos  = stepPos + direction * stepsPerSec * dtF;
+            phaseIdx = mod(round(stepPos), nPhaseSteps) + 1;
 
             imgIdx = imgOriIdx(currentBlock.stimNum);
             Screen('DrawTexture', wptr, gratingTex(imgIdx, phaseIdx), [], [0 0 width height]);
@@ -252,7 +264,7 @@ try
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        [~, onsetT] = Screen('Flip', wptr);
+        [vbl, onsetT] = Screen('Flip', wptr);
 
         % --- Log ---
         oriLog = NaN; if isStim, oriLog = currentBlock.ori; end
@@ -292,6 +304,7 @@ try
         if KeyCode(escapeKey), exitFlag = 1; end
     end
 
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     Screen('Preference','VisualDebugLevel',    oldVDL);
@@ -332,6 +345,7 @@ try
 
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     rethrow(err);

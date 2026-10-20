@@ -5,6 +5,11 @@ cfg = struct();
 cfg.PTB_dir = '/Users/marcusdaghlian/programs/experiments/Psychtoolbox';
 cfg.dir_base = '/Users/marcusdaghlian/programs/experiments/stripe_stimuli/matlab_scripts/ACH7T/logs';
 
+% Display refresh rate: every run script and the isoluminance tasks abort
+% unless the measured rate is expectedHz +/- toleranceHz (see checkRefreshRate.m).
+cfg.expectedHz = 60;
+cfg.toleranceHz = 1;
+
 cfg.eye_track = 0;
 cfg.eye_calib = 0;
 % Screen settings
@@ -64,8 +69,8 @@ findIso_cfg.ecc_mean = [
 findIso_cfg.fixSize = 4; % fixation dot size (pixels)
 % Flicker alternates every frame, so flicker frequency = refresh/2.
 % Abort if the measured refresh rate is not the expected one.
-findIso_cfg.expectedHz = 60;
-findIso_cfg.toleranceHz = 1;
+findIso_cfg.expectedHz = cfg.expectedHz;
+findIso_cfg.toleranceHz = cfg.toleranceHz;
 % Per ecc band; what is the starting *luminance* of the channels being adjusted
 % In blue -> applies to grey; in red -> applies to red
 findIso_cfg.startPointBlue = [60 70 80];
@@ -76,18 +81,13 @@ findIso_cfg.startPointRed = [180 200 220];
 stim_cfg = struct();
 % -> used in makeStim
 stim_cfg.nPhaseSteps = 30; % frames per grating cycle; makeStimuli writes them, colourProject(Seq)/stimViewer load them
+stim_cfg.TF_hz = 2;        % drift temporal frequency, Hz
 %{
-Drift speed is determined by three parameters:
-
-    speed (deg/s) = (monitor_hz / nPhaseSteps) / stim_cpd
-
-Where:
-    monitor_hz  = assumed 60 Hz 
-    nPhaseSteps = 30  (frames per full grating cycle, set in makeStimuli)
-    stim_cpd    = 0.4 (cycles per degree, baked into images at generation time)
-
-    -> temporal frequency = 60 / 30 = 2 Hz
-    -> drift speed        = 2 / 0.4 = 5 deg/s
+Drift: the run scripts take the grating phase from the flip timestamps,
+so the speed is TF_hz / stim_cpd whatever the refresh rate:
+    2 Hz / 0.4 cpd = 5 deg/s
+For smooth motion each frame should advance a whole number of phase steps:
+    TF_hz * nPhaseSteps / cfg.expectedHz = 2 * 30 / 60 = 1 step per frame
 %}
 stim_cfg.stim_cpd = 0.4;  % Stim cycles per degree
 stim_cfg.thetaList = [0 45 90 135];
@@ -134,7 +134,7 @@ cheq_cfg.save_screen = 0;     % Set to 1 to save screenshots each frame
 scot_cfg = struct();
 % --- Stimulus (baked into images by makeScotopic) ---
 scot_cfg.stim_cpd      = 0.2;   % spatial frequency, cycles/degree
-scot_cfg.nPhaseSteps   = 60;    % phase resolution per cycle (motion is time-based)
+scot_cfg.nPhaseSteps   = 75;    % phase steps per cycle: speed*cpd*75/60 = 4*0.2*75/60 = 1 step per frame at 60 Hz
 scot_cfg.baseOriList   = [0 45 90 135]; % rendered orientations (gratings repeat every 180 deg)
 % --- Motion ---
 scot_cfg.speed_dps     = 4;     % drift speed, deg/s
@@ -161,7 +161,7 @@ mt_cfg.speed_dps       = 5;     % radial speed, deg/s (Nasr: 3.2 px/frame at 60 
 mt_cfg.apertureFrac    = 0.5;   % aperture radius as a fraction of screen height (Nasr: full image height)
 mt_cfg.ringLum         = 101;   % ring grey level (Nasr: 101)
 mt_cfg.bgLum           = 127;   % background grey level (Nasr: 127)
-mt_cfg.nPhaseSteps     = 48;    % phase resolution per ring period (motion is time-based)
+mt_cfg.nPhaseSteps     = 48;    % phase steps per ring period: (5/2)*48/60 = 2 steps per frame at 60 Hz
 % --- Block timing (Nasr: 12 s + 5 x (24 s static + 24 s moving) + 12 s = 264 s) ---
 mt_cfg.initial_blank   = 12;    % rest at run start, s
 mt_cfg.end_blank       = 12;    % rest at run end, s

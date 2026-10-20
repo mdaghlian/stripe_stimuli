@@ -241,6 +241,8 @@ try
     wptr=Screen('OpenWindow',screenid);
     HideCursor;
     Screen('BlendFunction',wptr,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA); 
+    ifi=checkRefreshRate(wptr,cfg);%flip interval; aborts unless cfg.expectedHz
+    Priority(MaxPriority(wptr));
     
     % load stimuli into memory
     for c=1:length(colourCondLabels)
@@ -286,7 +288,7 @@ try
     fixTask.start();
     Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
     fixTask.draw(wptr);
-    Screen('Flip',wptr);
+    vbl=Screen('Flip',wptr);
     
     % all run times are GetSecs-StartTime, i.e. s since the first trigger
     StartTime=t0;
@@ -310,62 +312,66 @@ try
     nLog=0;
     img_count=0;
     
-    while GetSecs-StartTime<length(BlockSeq)-nPad%because of the appended zeros, we subtract nPad here                                 
-        fixTask.update(GetSecs-StartTime);
-        if (BlockSeq(floor(GetSecs-StartTime+1))==0) 
+    % Frame timing: each frame's stimulus is computed for tF, its predicted
+    % onset (previous flip + one refresh interval, s since trigger 1). Drift
+    % phase accumulates stepsPerSec*dtF and is rounded to a step: a whole
+    % number of steps per frame at the expected refresh rate (smooth), and
+    % after a dropped frame it skips ahead, so speed and phase stay right.
+    stepsPerSec=stim_cfg.TF_hz*nSteps;%phase steps per second
+    stepPos=0;
+    tPrev=vbl+ifi-StartTime;
+    while true
+        tF=vbl+ifi-StartTime;%predicted onset of this frame
+        if tF>=length(BlockSeq)-nPad, break; end%because of the appended zeros, we subtract nPad here
+        dtF=tF-tPrev;
+        tPrev=tF;
+        fixTask.update(tF);
+        if (BlockSeq(floor(tF+1))==0) 
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
             fixTask.draw(wptr);
             if OnsetPos==0
                 OnsetPos=1;
-                rest_onset=[rest_onset GetSecs-StartTime];
+                rest_onset=[rest_onset tF];
             end
         else            
             OnsetPos=0;            
             % fade out once the block ends within FadingTime (second half of a block, next block or rest starts at t+FadingTime)
-            if (mod(BlockSeq(floor(GetSecs-StartTime+1)),2)==1 && mod(BlockSeq(floor(GetSecs-StartTime+1+FadingTime)),2)==0)
+            if (mod(BlockSeq(floor(tF+1)),2)==1 && mod(BlockSeq(floor(tF+1+FadingTime)),2)==0)
                 if FadeNeg==0
-                    fadeStart=GetSecs-StartTime;
+                    fadeStart=tF;
                     FadeNeg=1;
                     FadePos=0;
                 end
-                alphaImg=1-((GetSecs-StartTime)-fadeStart)/FadingTime;
+                alphaImg=1-((tF)-fadeStart)/FadingTime;
                 if alphaImg<0
                     alphaImg=0;
                 end         
             else 
                 if FadePos==0
-                    if BlockSeq(floor(GetSecs-StartTime+1))<=nConditions%save onset times (BW conditions 1..nConditions/2 have codes 2..nConditions)
-                        bw_onset=[bw_onset GetSecs-StartTime];
+                    if BlockSeq(floor(tF+1))<=nConditions%save onset times (BW conditions 1..nConditions/2 have codes 2..nConditions)
+                        bw_onset=[bw_onset tF];
                     else
-                        colour_onset=[colour_onset GetSecs-StartTime];
+                        colour_onset=[colour_onset tF];
                     end
-                    fadeStart=GetSecs-StartTime;
+                    fadeStart=tF;
                     FadeNeg=0;
                     FadePos=1;
                 end 
-                alphaImg=((GetSecs-StartTime)-fadeStart)/FadingTime;
+                alphaImg=((tF)-fadeStart)/FadingTime;
                 if alphaImg>1
                    alphaImg=1;
                 end
             end
-            imgIndex=ceil(BlockSeq(floor(GetSecs-StartTime+1))/2);
-            if BlockSeqDir(floor(GetSecs-StartTime+1))>0   
-                cnt=cnt-1;
-                if cnt<1
-                    cnt=nSteps;
-                end
-            else
-                cnt=cnt+1;
-                if cnt>nSteps
-                    cnt=1;
-                end
-            end
+            imgIndex=ceil(BlockSeq(floor(tF+1))/2);
+            % BlockSeqDir>0 steps the frames backwards, <0 forwards
+            stepPos=stepPos-sign(BlockSeqDir(floor(tF+1)))*stepsPerSec*dtF;
+            cnt=mod(round(stepPos),nSteps)+1;
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);%set underlying grey image as target for fading
             Screen('DrawTexture',wptr,gratingTexture(imgIndex,cnt),[],[0 0 width height],[],[],alphaImg);
             fixTask.draw(wptr);
         end
-        tempLog=[GetSecs-StartTime BlockSeq(floor(GetSecs-StartTime)+1) cnt alphaImg];
-        [~,onsetT]=Screen('Flip',wptr);
+        tempLog=[tF BlockSeq(floor(tF)+1) cnt alphaImg];
+        [vbl,onsetT]=Screen('Flip',wptr);
         nLog=nLog+1;
         LogData(nLog,:)=[tempLog onsetT-t0];
         
@@ -424,6 +430,7 @@ try
         end
     end
      
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     Screen('Preference','VisualDebugLevel',oldVisualDebugLevel);
@@ -459,6 +466,7 @@ try
     analysis_Fixation(FileName);
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    Priority(0);
     Screen('CloseAll');
     ShowCursor;
     if cfg.eye_track
