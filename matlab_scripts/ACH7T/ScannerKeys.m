@@ -7,9 +7,16 @@ classdef ScannerKeys < handle
 %   reports whether a key is down at the instant it is called, so brief
 %   trigger pulses and short button presses are missed between polls (in
 %   the pilot, 4-13 of ~100 triggers per run were logged). A KbQueue
-%   records every key event in the background with its GetSecs time,
-%   however busy the frame loop is; the run script empties it once per
+%   records key presses in the background with their GetSecs times,
+%   however busy the frame loop is; the run script reads it once per
 %   frame with poll().
+%
+%   Psychtoolbox compatibility: only KbQueueCreate/Start/Check/Flush/
+%   Stop/Release are used, which exist in old versions (e.g. 3.0.14);
+%   KbQueueGetEvent/KbEventAvail are not. KbQueueCheck returns the first
+%   and last press time of each key since the previous call, so per key
+%   up to two presses per frame (~17 ms) are kept. Triggers (one per TR)
+%   and button presses are far slower than that.
 %
 %   Keyboard-agnostic: a KbQueue listens to one device, so one queue is
 %   opened on every keyboard found (GetKeyboardIndices) and their events
@@ -163,22 +170,25 @@ classdef ScannerKeys < handle
 
     methods (Access = private)
         function ev = nextEvents(obj)
-            % All key-press events waiting in every queue, in time order.
-            ev = [];
-            for k = 1:numel(obj.devices)
-                d = obj.devices{k};
-                while KbEventAvail(d)
-                    e = KbQueueGetEvent(d);
-                    if e.Pressed   % ignore key releases
-                        e = struct('Time', e.Time, 'Keycode', e.Keycode);
-                        ev = [ev e]; %#ok<AGROW>
+            % Key presses since the previous call, from every queue, in
+            % time order. KbQueueCheck gives, per key, the first and last
+            % press time since it was last called (0 = not pressed).
+            keysOfInterest = [obj.triggerKey obj.detectKey obj.escapeKey];
+            t = []; k = [];
+            for d = 1:numel(obj.devices)
+                [pressed, firstPress, ~, lastPress] = KbQueueCheck(obj.devices{d});
+                if ~pressed, continue; end
+                for key = keysOfInterest
+                    if firstPress(key) > 0
+                        t(end+1) = firstPress(key); k(end+1) = key; %#ok<AGROW>
+                        if lastPress(key) > firstPress(key)   % pressed again within this frame
+                            t(end+1) = lastPress(key); k(end+1) = key; %#ok<AGROW>
+                        end
                     end
                 end
             end
-            if ~isempty(ev)
-                [~, i] = sort([ev.Time]);
-                ev = ev(i);
-            end
+            [t, i] = sort(t);
+            ev = struct('Time', num2cell(t), 'Keycode', num2cell(k(i)));
         end
     end
 end
