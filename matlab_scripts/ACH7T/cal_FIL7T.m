@@ -64,38 +64,11 @@ function cal = cal_FIL7T(filter)
 %     cal.clip.(c)       first measured drive on the plateau (within 1% of the top)
 %     cal.table          the table [drive R G B W]
 %     cal.filter, cal.source
+%
+%   This is displayModel(struct('type','FIL7T','filter',filter)); see
+%   displayModel.m for other sources (any table file, gamma values, clip points).
 
 if nargin < 1 || isempty(filter), filter = 'noFilter'; end
-filters = {'noFilter', '1xNDFilter', '2xNDFilter', '3xNDFilter'};
-if ~any(strcmp(filter, filters))
-    error('cal_FIL7T: filter must be one of: %s.', strjoin(filters, ', '));
-end
-fs = filesep;
-here = fileparts(mfilename('fullpath'));
-tab = csvread([here fs 'calibration' fs 'FIL7T_20260515_AWade' fs 'tables' fs ...
-    'cal_FIL7T_20260515_' filter '.csv'], 1, 0);   % skip header; csvread for older MATLAB
-
-chans = {'R', 'G', 'B', 'W'};
-drive = tab(:, 1);
-cal.table  = tab;
-cal.filter = filter;
+cal = displayModel(struct('type', 'FIL7T', 'filter', filter));
 cal.source = sprintf('A. Wade, FIL 7T calibration 15 May 2026, %s run', filter);
-cal.black  = 0;   % tables are luminance above the black screen (AW's dark = black screen)
-
-for k = 1:numel(chans)
-    c = chans{k};
-    y = max(tab(:, k+1), 0);          % drive 0 is ~0 +/- noise (dark = black screen)
-    y = cummax(y);                    % luminance cannot fall with drive (removes noise)
-    top = find(y >= 0.99 * y(end), 1);    % start of the plateau (within 1% of the top; the plateau creeps by ~1%)
-    fwd.(c) = y;
-    % inverse on the rising part only; drop repeated values (noise floor)
-    [yu, iu] = unique(y(1:top), 'first');
-    inv.(c) = [yu, drive(iu)];
-    cal.dLmax.(c) = y(top);
-    cal.clip.(c)  = drive(top);
-end
-
-cal.dL = @(c, d) interp1(drive, fwd.(c), min(max(d, 0), 255), 'linear');
-cal.L  = @(c, d) cal.black + cal.dL(c, d);
-cal.d  = @(c, L) interp1(inv.(c)(:,1), inv.(c)(:,2), min(max(L, 0), cal.dLmax.(c)), 'linear');
 end

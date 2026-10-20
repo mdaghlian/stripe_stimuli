@@ -103,6 +103,19 @@ stim_cfg.colourCondLabels={'bw', 'colour'};
 stim_cfg.FadingTime=1; % duration of each fade in / fade out, s (1 s originally); must be <= BlockTime/2
 
 
+%% DISPLAY MODEL (displayModel.m) - makeStimuli builds the colour and BW
+% gratings in linear luminance with this model, then converts to drive.
+% See ACH7T_calibration_plan.md, Section 5 (step 1a / step 3, option A).
+cal_cfg = struct();
+cal_cfg.type   = 'FIL7T';      % 'FIL7T' (measured tables), 'table', 'gamma' or 'linear'
+cal_cfg.filter = 'noFilter';   % FIL7T: 'noFilter', '1xNDFilter', '2xNDFilter', '3xNDFilter'
+% Alternatives (set by hand):
+%   cal_cfg.type = 'table';  cal_cfg.file = '/path/to/table.csv';   % columns drive,R,G,B,W
+%   cal_cfg.type = 'gamma';  cal_cfg.gamma = 2.26;                  % or [R G B W]
+%                            cal_cfg.clip  = [255 206 222 255];     % drive where each channel stops rising (R G B W)
+%                            cal_cfg.Lmax  = [111.9 830 26.5 952];  % luminance at the clip (relative units are fine)
+%   cal_cfg.type = 'linear';                                        % no gamma correction (stimuli in drive units)
+
 % FOR SEQ
 stim_cfg.Bcondition_list= {'bw', 'bw','rest', 'bw', 'bw', 'rest','bw', 'bw', };
 stim_cfg.Bori_per_stim = 2; % 2 orientations per stim
