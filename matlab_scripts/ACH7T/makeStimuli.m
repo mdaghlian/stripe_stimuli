@@ -129,6 +129,27 @@ if any(2*Lgrey(:) > model.dLmax.W)
         100*mean(2*Lgrey(:) > model.dLmax.W));
 end
 
+% OPTIONAL R + B ADDITIVITY CORRECTION (checkAdditivityRB.m)
+% m(p) is the factor by which the observer had to scale a red + blue
+% mixture with blue fraction p (predicted isoluminant if R and B add) to
+% null its flicker against pure blue; m(0) = m(1) = 1 by definition. With
+% the correction, the colour grating's luminance at blue fraction g is
+% multiplied by m(g).
+rbm=@(g) ones(size(g));
+stim_params.rbCorrection=[];
+if isfield(cal_cfg,'rbCorrection') && cal_cfg.rbCorrection
+    rbFiles=dir([pathfile fs 'logfiles' fs 'RBadditivity_*.mat']);
+    if isempty(rbFiles)
+        error('makeStimuli: cal_cfg.rbCorrection is true but no RBadditivity_*.mat in %s. Run checkAdditivityRB first.', [pathfile fs 'logfiles']);
+    end
+    [~,newest]=max([rbFiles.datenum]);
+    rb=load([pathfile fs 'logfiles' fs rbFiles(newest).name]); rb=rb.RBadditivity;
+    [pp,order]=sort(rb.blueFractions(:)');
+    rbm=@(g) interp1([0 pp 1],[1 rb.m(order) 1],g,'linear');
+    stim_params.rbCorrection=struct('file',rbFiles(newest).name,'blueFractions',pp,'m',rb.m(order));
+    fprintf('R+B additivity correction from %s: m = %s at blue fractions %s\n', rbFiles(newest).name, mat2str(rb.m(order),3), mat2str(pp,3));
+end
+
 % Record the model and luminance summary with the stimulus parameters
 modelInfo=rmfield(model,intersect(fieldnames(model),{'dL','d','L'}));
 stim_params.displayModel=modelInfo;
@@ -173,7 +194,8 @@ for t=1:length(thetaList)
         imwrite(uint16((BWgrating/255)*65535),outPicBW,'PNG');
     
         % blue: luminance LB*g -> drive (peaks at blue's clip point, not 255)
-        blueGrating=model.d('B',LB*grating);
+        gBlue=grating;
+        blueGrating=model.d('B',LB*gBlue.*rbm(gBlue));
         
         % apply phase step 
         phaseRad=(phaseStep*step+.5)*2*pi;
@@ -181,7 +203,7 @@ for t=1:length(thetaList)
         grating=(grating-min(grating(:)))/(max(grating(:))-min(grating(:)));%normalise to [0,1]
     
         % red (antiphase): luminance LR*(1-g) -> drive
-        redGrating=model.d('R',LR.*grating);
+        redGrating=model.d('R',LR.*grating.*rbm(gBlue));
     
         % define colour grating
         colourGrating=zeros(height,width,3);

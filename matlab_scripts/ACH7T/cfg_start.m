@@ -115,6 +115,20 @@ cal_cfg.filter = 'noFilter';   % FIL7T: 'noFilter', '1xNDFilter', '2xNDFilter', 
 %                            cal_cfg.clip  = [255 206 222 255];     % drive where each channel stops rising (R G B W)
 %                            cal_cfg.Lmax  = [111.9 830 26.5 952];  % luminance at the clip (relative units are fine)
 %   cal_cfg.type = 'linear';                                        % no gamma correction (stimuli in drive units)
+cal_cfg.rbCorrection = false;  % true: makeStimuli scales the colour grating by the measured
+                               % R+B additivity m(g) (latest RBadditivity_*.mat of the session)
+
+% R + B additivity check (checkAdditivityRB.m; calibration plan step 1b)
+rbcheck_cfg = struct();
+rbcheck_cfg.band          = 2;                 % findIso_cfg eccentricity band used as the test field
+rbcheck_cfg.blueFractions = [0.25 0.5 0.75];   % blue fraction p of the tested mixtures
+rbcheck_cfg.nRepsMatch    = 3;                 % red vs blue matches (observer's k)
+rbcheck_cfg.nRepsMix      = 3;                 % repetitions per mixture
+rbcheck_cfg.flickerHz     = 15;                % full-cycle flicker rate (alternation = 2x); 30 = every frame at 60 Hz
+rbcheck_cfg.step          = 0.015;             % luminance step per key press (fraction)
+rbcheck_cfg.jitter        = 0.10;              % start value 1 +/- jitter
+rbcheck_cfg.surround      = 'matched';         % 'matched' (grey at blue's luminance) or 'black'
+rbcheck_cfg.tolerance     = 0.03;              % |m - 1| treated as additive
 
 % FOR SEQ
 stim_cfg.Bcondition_list= {'bw', 'bw','rest', 'bw', 'bw', 'rest','bw', 'bw', };
