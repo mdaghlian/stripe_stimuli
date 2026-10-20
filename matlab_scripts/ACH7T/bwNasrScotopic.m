@@ -76,10 +76,10 @@ if exist(metaFile,'file')~=2
     makeScotopic(name_subj, name_sess);
 end
 load(metaFile, 'stim_params_scot');
-if stim_params_scot.nPhaseSteps ~= scot_cfg.nPhaseSteps
-    % e.g. stimuli made before nPhaseSteps was chosen for a whole number of steps per frame
-    fprintf('scotopic stimuli in %s have %d phase steps, scot_cfg.nPhaseSteps is %d - rebuilding them.\n', ...
-        stimPath, stim_params_scot.nPhaseSteps, scot_cfg.nPhaseSteps);
+if stim_params_scot.nPhaseSteps ~= scot_cfg.nPhaseSteps || ~isfield(stim_params_scot, 'background')
+    % stimuli made before gamma correction / the matched background, or
+    % before nPhaseSteps was chosen for a whole number of steps per frame
+    fprintf('scotopic stimuli in %s are out of date - rebuilding them.\n', stimPath);
     makeScotopic(name_subj, name_sess);
     load(metaFile, 'stim_params_scot');
 end
@@ -156,7 +156,7 @@ end
 % Fixation task (fix_cfg in cfg_start) & background
 % -------------------------------------------------------------------------
 fixTask = FixationTask(fix_cfg, width, height);
-BGimage = uint8(128 * ones(height, width));   % grey background (spatially uniform field)
+BGimage = uint8(round(stim_params_scot.background.drive) * ones(height, width));   % matched grey background (makeScotopic)
 
 % -------------------------------------------------------------------------
 % PTB

@@ -40,8 +40,13 @@ nPhaseSteps = mt_cfg.nPhaseSteps;
 period_px   = mt_cfg.ringPeriod_deg * px_per_deg;
 ringW_px    = mt_cfg.ringWidth_deg  * px_per_deg;
 aperture_px = mt_cfg.apertureFrac   * gh;
-ringLum     = mt_cfg.ringLum;
-bgLum       = mt_cfg.bgLum;
+% Luminance: background = matched grey (display model). The rings keep the
+% luminance contrast that mt_cfg.ringLum on mt_cfg.bgLum (Nasr's drive
+% values, 101 on 127) has on this display.
+model   = displayModel(cal_cfg);
+bg      = backgroundLuminance(name_subj, name_sess);
+ringRel = model.dL('W', mt_cfg.ringLum) / model.dL('W', mt_cfg.bgLum);   % ring / background luminance
+bgLum   = bg.drive;                                                       % background drive
 
 % -------------------------------------------------------------------------
 % Thin dark rings on grey inside a circular aperture
@@ -57,7 +62,8 @@ for step = 1:nPhaseSteps
     cover = min(max(ringW_px/2 - e + 0.5, 0), 1);
     % soft aperture edge
     cover = cover .* min(max(aperture_px - R + 0.5, 0), 1);
-    imwrite(uint16(((bgLum + (ringLum - bgLum) * cover) / 255) * 65535), ...
+    drive = model.d('W', bg.L * (1 + (ringRel - 1) * cover));   % luminance -> drive
+    imwrite(uint16(drive / 255 * 65535), ...
             [outFolder fs sprintf('%d', step) '.png'], 'PNG');
 end
 fprintf('MT ring frames written to: %s\n', outFolder);
@@ -69,7 +75,10 @@ stim_params_mt.cfg            = cfg;
 stim_params_mt.mt_cfg         = mt_cfg;
 stim_params_mt.ringPeriod_deg = mt_cfg.ringPeriod_deg;
 stim_params_mt.nPhaseSteps    = nPhaseSteps;
-stim_params_mt.bgLum          = bgLum;
+stim_params_mt.bgLum          = bgLum;            % background drive (read by mtLocalizer)
+stim_params_mt.background     = bg;
+stim_params_mt.ringContrast   = ringRel - 1;      % Weber contrast of the rings, in luminance
+stim_params_mt.displayModel   = model.description;
 stim_params_mt.px_per_cm      = px_per_cm;
 stim_params_mt.px_per_deg     = px_per_deg;        % image px (kept under this name for older sessions)
 stim_params_mt.px_per_deg_screen = px_per_deg / cfg.image_frac;

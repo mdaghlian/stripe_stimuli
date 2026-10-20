@@ -46,10 +46,17 @@ dir_base = cfg.dir_base;
 if exist(dir_base,'dir')~=7, error('cfg.dir_base does not exist: %s. Set it in cfg_start.m for this computer.', dir_base); end
 pathfile = [dir_base fs name_subj fs 'cheq' fs name_sess];
 stimPath = [pathfile fs 'stimuli' fs 'checkerboard_frames'];
-if exist([stimPath fs 'frame1.png'],'file')~=2
-    fprintf('No checkerboard stimuli in %s - building them now.\n', stimPath);
+metaFile = [pathfile fs 'stimuli' fs 'logfiles' fs 'stim_metadata.mat'];
+rebuild  = exist([stimPath fs 'frame1.png'],'file')~=2 || exist(metaFile,'file')~=2;
+if ~rebuild
+    m = load(metaFile, 'stim_params_cheq');
+    rebuild = ~isfield(m.stim_params_cheq, 'background');   % made before gamma correction / matched background
+end
+if rebuild
+    fprintf('Checkerboard stimuli in %s missing or out of date - building them now.\n', stimPath);
     makeCheq(name_subj, name_sess);
 end
+load(metaFile, 'stim_params_cheq');
 
 runDir = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if exist(runDir,'dir')~=7
@@ -95,7 +102,7 @@ totalDuration = t;
 % Fixation task (fix_cfg in cfg_start) & background
 % -------------------------------------------------------------------------
 fixTask = FixationTask(fix_cfg, width, height);
-BGimage = uint8(128 * ones(height, width));   % grey background
+BGimage = uint8(round(stim_params_cheq.background.drive) * ones(height, width));   % matched grey background (makeCheq)
 
 % 
 predictedDuration = initial_blank + nBlocks * (BlockTime + OffTime) + end_blank;

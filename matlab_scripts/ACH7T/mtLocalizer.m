@@ -77,10 +77,10 @@ if exist(metaFile,'file')~=2
     makeMT(name_subj, name_sess);
 end
 load(metaFile, 'stim_params_mt');
-if stim_params_mt.nPhaseSteps ~= mt_cfg.nPhaseSteps
-    % e.g. stimuli made before nPhaseSteps was chosen for a whole number of steps per frame
-    fprintf('MT stimuli in %s have %d phase steps, mt_cfg.nPhaseSteps is %d - rebuilding them.\n', ...
-        stimPath, stim_params_mt.nPhaseSteps, mt_cfg.nPhaseSteps);
+if stim_params_mt.nPhaseSteps ~= mt_cfg.nPhaseSteps || ~isfield(stim_params_mt, 'background')
+    % stimuli made before gamma correction / the matched background, or
+    % before nPhaseSteps was chosen for a whole number of steps per frame
+    fprintf('MT stimuli in %s are out of date - rebuilding them.\n', stimPath);
     makeMT(name_subj, name_sess);
     load(metaFile, 'stim_params_mt');
 end
@@ -149,7 +149,7 @@ end
 % Fixation task (fix_cfg in cfg_start) & background
 % -------------------------------------------------------------------------
 fixTask = FixationTask(fix_cfg, width, height);
-BGimage = uint8(bgLum * ones(height, width));
+BGimage = uint8(round(bgLum) * ones(height, width));   % matched grey background (makeMT)
 
 % -------------------------------------------------------------------------
 % PTB

@@ -69,9 +69,12 @@ checker = sign(radialPart) .* sign(angularPart);
 % Centre pixel: polar angle undefined, set to mid-grey
 checker(R_px < 1) = 0;
 
-% Convert to [0, 1]: +1 → white, –1 → black, 0 → mid-grey (centre)
-frame0 = (checker + 1) / 2;        % phase 0  (normal)
-frame1 = (-checker + 1) / 2;       % phase 1  (inverted / reversed)
+% Luminance: checks at 0 and 2 x the matched background (display model),
+% so the mean equals the background and rest; centre pixel = background.
+model  = displayModel(cal_cfg);
+bg     = backgroundLuminance(name_subj, name_sess);
+frame0 = model.d('W', bg.L * (1 + checker)) / 255;    % phase 0  (normal), [0, 1] drive
+frame1 = model.d('W', bg.L * (1 - checker)) / 255;    % phase 1  (inverted / reversed)
 
 % -------------------------------------------------------------------------
 % Save metadata
@@ -81,6 +84,8 @@ stim_params_cheq.cheq_cfg         = cheq_cfg;
 stim_params_cheq.px_per_cm        = px_per_cm;
 stim_params_cheq.deg_per_px       = deg_per_px;
 stim_params_cheq.cpd              = cpd;
+stim_params_cheq.background       = bg;                % rest level (bg.drive) and its source
+stim_params_cheq.displayModel     = model.description;
 stim_params_cheq.timestamp        = datetime('now');
 metafile = [pathfile fs 'logfiles'];
 if exist(metafile,'dir')~=7, mkdir(metafile); end

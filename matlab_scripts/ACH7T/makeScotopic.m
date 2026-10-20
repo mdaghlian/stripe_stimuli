@@ -40,8 +40,14 @@ nPhaseSteps     = scot_cfg.nPhaseSteps;
 baseOriList     = scot_cfg.baseOriList;
 spatialFreq_cpp = stim_cpd * deg_per_px;                % cycles per pixel
 
+% Luminance: full-contrast sinusoid around the matched background,
+% 0 to 2 x background in LUMINANCE (display model), so the grating's mean
+% equals the background and rest. The ND filters scale everything alike.
+model = displayModel(cal_cfg);
+bg    = backgroundLuminance(name_subj, name_sess);
+
 % -------------------------------------------------------------------------
-% Full-contrast achromatic gratings, one folder per orientation
+% Full-contrast achromatic gratings (in luminance), one folder per orientation
 % -------------------------------------------------------------------------
 [Xm, Ym] = meshgrid(1:gw, 1:gh);
 phaseStep = 1 / nPhaseSteps;
@@ -55,7 +61,8 @@ for o = 1:length(baseOriList)
     for step = 1:nPhaseSteps
         phaseRad = phaseStep * step * 2 * pi;
         grating  = sin(Xp + phaseRad);                      % [-1, 1]
-        imwrite(uint16(((grating + 1) / 2) * 65535), ...    % max contrast, 16-bit
+        drive    = model.d('W', bg.L * (1 + grating));     % luminance 0 .. 2 x background -> drive
+        imwrite(uint16(drive / 255 * 65535), ...            % 16-bit
                 [outFolder fs sprintf('%d', step) '.png'], 'PNG');
     end
     fprintf('Orientation %d deg written (%d/%d)\n', baseOriList(o), o, length(baseOriList));
@@ -75,6 +82,8 @@ stim_params_scot.deg_per_px      = deg_per_px;
 stim_params_scot.px_per_deg      = px_per_deg;                 % image px (kept under this name for older sessions)
 stim_params_scot.px_per_deg_screen = px_per_deg / cfg.image_frac;
 stim_params_scot.spatialFreq_cpp = spatialFreq_cpp;
+stim_params_scot.background      = bg;                         % rest level (bg.drive) and its source
+stim_params_scot.displayModel    = model.description;
 stim_params_scot.timestamp       = datetime('now');
 metafile = [pathfile fs 'logfiles'];
 if exist(metafile,'dir')~=7, mkdir(metafile); end
