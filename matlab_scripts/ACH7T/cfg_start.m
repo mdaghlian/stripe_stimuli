@@ -80,7 +80,7 @@ findIso_cfg.startPointRed = [180 200 220];
 % settings
 stim_cfg = struct();
 % -> used in makeStim
-stim_cfg.nPhaseSteps = 30; % frames per grating cycle; makeStimuli writes them, colourProject(Seq)/stimViewer load them
+stim_cfg.nPhaseSteps = 30; % frames per grating cycle; makeStimuli writes them, colourProject/stimViewer load them
 stim_cfg.TF_hz = 2;        % drift temporal frequency, Hz
 %{
 Drift: the run scripts take the grating phase from the flip timestamps,
@@ -130,9 +130,6 @@ rbcheck_cfg.jitter        = 0.10;              % start value 1 +/- jitter
 rbcheck_cfg.surround      = 'matched';         % 'matched' (grey at blue's luminance) or 'black'
 rbcheck_cfg.tolerance     = 0.03;              % |m - 1| treated as additive
 
-% FOR SEQ
-stim_cfg.Bcondition_list= {'bw', 'bw','rest', 'bw', 'bw', 'rest','bw', 'bw', };
-stim_cfg.Bori_per_stim = 2; % 2 orientations per stim
 
 
 
