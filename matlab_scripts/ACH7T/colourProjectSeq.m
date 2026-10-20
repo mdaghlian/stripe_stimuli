@@ -144,6 +144,7 @@ try
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
+    useIdentityGamma(wptr);              % identity gamma table, as in the calibration (RestoreCluts on exit)
     Priority(MaxPriority(wptr));
 
     %----------------------------------------------------------------------
@@ -351,6 +352,7 @@ try
     end
 
     Priority(0);
+    RestoreCluts;
     Screen('CloseAll');
     ShowCursor;
     Screen('Preference','VisualDebugLevel',    oldVisualDebugLevel);
@@ -380,6 +382,7 @@ try
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
     Priority(0);
+    RestoreCluts;
     Screen('CloseAll');
     ShowCursor;
     rethrow(err);
