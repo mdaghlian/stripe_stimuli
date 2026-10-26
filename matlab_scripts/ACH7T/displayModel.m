@@ -120,6 +120,8 @@ model.file  = file;
 for k = 1:numel(chans)
     c = chans{k};
     y = max(tab(:, k+1), 0);              % drive 0 is ~0 +/- noise (luminance above black)
+    y(drive == 0) = 0;                    % luminance above black is 0 at drive 0 by definition; pins the
+                                          % inverse so d(c, 0) = 0 instead of NaN (the drive-0 reading is noise)
     y = cummax(y);                        % luminance cannot fall with drive (removes noise)
     top = find(y >= 0.99 * y(end), 1);    % start of the plateau (within 1% of the top)
     fwd.(c) = y;
