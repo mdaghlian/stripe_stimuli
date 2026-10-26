@@ -91,3 +91,6 @@ makeStimuli('s001t', 's1');
 
 
 
+
+% Step-by-step session instructions (colour + MT, calibration at the start):
+% see RUNNING_colour_and_MT.md
