@@ -7,3 +7,4 @@ python_scripts/color_grating/data/*
 *.DS_Store
 *.asv
 *.vscode
+/matlab_scripts/NasrOriginal/*
