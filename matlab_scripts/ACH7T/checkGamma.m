@@ -32,7 +32,7 @@ function checkGamma(name_subj, name_sess)
 %     display is dimmer there than the model says. One drive level is the
 %     resolution of the match ('1 level', a few % at the lowest pair).
 %     Output: <dir_base>/<subj>/colour/<sess>/stimuli/logfiles/GammaCheck_<time>.mat,
-%     and a plot of m per square per channel (GammaCheck_<time>.png).
+%     and a plot of the matches on the model's luminance curves (GammaCheck_<time>.png).
 
 close all;
 cfg_start;
@@ -219,31 +219,35 @@ end
 
 
 function plotGammaCheck(G, model, pngFile)
-% m (model luminance at the match / predicted mean) per square against its
-% predicted luminance, one panel per channel: the +/- tolerance band and the
-% luminance step of one drive level at that match (grey bar). Saved as PNG.
+% The model's drive -> luminance curve of each channel (line, as a fraction
+% of the channel's maximum) with, per square, the predicted match (open
+% circle, on the curve) and the observer's match (filled), both at the
+% checkerboard's mean luminance. A filled circle on the curve: the model is
+% right at that level. To the right: more drive was needed, i.e. the display
+% is dimmer there than the model says; to the left: brighter. Labels give
+% the offset in drive levels (one level is a few % of luminance at most, so
+% offsets are small on this scale). Saved as PNG.
 sq = G.squares;
 chans = unique({sq.chan}, 'stable');
-tol = G.gcheck_cfg.tolerance;
-yr = max(2.6 * tol, max(abs(G.m - 1)) + 0.01);   % y range: tolerance band and every match
-fig = figure('Name', 'Gamma check', 'Color', 'w', 'Position', [100 100 360 * numel(chans) 380]);
+d = 0:255;
+red = [0.8 0.2 0.2];
+fig = figure('Name', 'Gamma check', 'Color', 'w', 'Position', [100 100 380 * numel(chans) 400]);
 for ic = 1:numel(chans)
     c = chans{ic};
-    idx = find(strcmp({sq.chan}, c));
-    [~, order] = sort([sq(idx).Lpred]); idx = idx(order);   % left to right, so labels alternate in height
     subplot(1, numel(chans), ic); hold on;
-    fill([0 1 1 0], 1 + tol * [-1 -1 1 1], [0.9 0.95 0.9], 'EdgeColor', 'none');
-    plot([0 1], [1 1], 'k:');
-    for j = 1:numel(idx)
-        i = idx(j);
-        x = sq(i).Lpred / model.dLmax.(c);
-        plot([x x], 1 + sq(i).levelStep * [-0.5 0.5], '-', 'Color', [0.6 0.6 0.6], 'LineWidth', 6);
-        plot(x, G.m(i), 'ko', 'MarkerFaceColor', 'k', 'LineWidth', 1.2);
-        text(x, 1 - yr * (0.82 + 0.1 * mod(j, 2)), sq(i).label, 'HorizontalAlignment', 'center', 'FontSize', 8);
+    plot(d, model.dL(c, d) / model.dLmax.(c), 'k-');
+    for i = find(strcmp({sq.chan}, c))
+        y = sq(i).Lpred / model.dLmax.(c);
+        dm = G.results(i, 2);
+        plot([sq(i).dPred dm], [y y], '-', 'Color', red);
+        plot(sq(i).dPred, y, 'ko', 'MarkerFaceColor', 'w');
+        plot(dm, y, 'o', 'Color', red, 'MarkerFaceColor', red);
+        text(min(sq(i).dPred, dm) - 6, y, sprintf('%s  %+g', sq(i).label, dm - round(sq(i).dPred)), ...
+            'HorizontalAlignment', 'right', 'FontSize', 8);
     end
-    xlim([0 1]); ylim(1 + yr * [-1 1]); box on;
-    xlabel('predicted luminance (fraction of max)'); ylabel('m = matched / predicted');
-    title(sprintf('%s   (green: \\pm%.0f%%, grey: 1 drive level)', c, 100 * tol));
+    xlim([0 255]); ylim([0 1.05]); box on;
+    xlabel('drive'); ylabel('luminance (fraction of channel max)');
+    title(sprintf('%s   (open: model, filled: observer)', c));
 end
 try
     exportgraphics(fig, pngFile, 'Resolution', 120);
