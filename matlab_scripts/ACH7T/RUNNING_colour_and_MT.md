@@ -33,6 +33,13 @@ Use the same `subjid` / `sesid` for everything below.
 All tasks: participant fixates the dot; **1** darker, **2** brighter (hold to go faster), **3** done. Participant presses **1** to start.
 At the end MATLAB prints `... completed and saved ... Press Esc to continue` → press **Esc**.
 
+Gamma check first (once per projector setup; anyone can do it, so it can be done before the participant is in):
+```matlab
+checkGamma(subjid,sesid)
+```
+- `All m within +/-3% of 1` → fine.
+- `Some m differ ...` → note which channel / level; carry on, but flag it (the display model may be off there).
+
 Blue:
 ```matlab
 findIsoluminance_Blue(subjid,sesid)
@@ -48,14 +55,7 @@ Red + blue combined (once per projector setup, not every session):
 checkAdditivityRB(subjid,sesid)
 ```
 - `All m within +/-3% of 1` → fine.
-- `Some m differ ...` → set `cal_cfg.rbCorrection = true;` in `cfg_start.m` **before making stimuli**.
-
-Gamma check (once per projector setup; anyone can do it):
-```matlab
-checkGamma(subjid,sesid)
-```
-- `All m within +/-3% of 1` → fine.
-- `Some m differ ...` → note which channel / level; carry on, but flag it (the display model may be off there).
+- `Some m differ ...` → set `cal_cfg.rbCorrection = true;` in `cfg_start.m` **before making stimuli**, and from then on run `checkAdditivityRB` in **every** session (every participant and `sesid`). `makeStimuli` reads the correction from the current session's folder only and stops with an error if it isn't there.
 
 ---
 
@@ -68,6 +68,13 @@ makeMT(subjid,sesid)
 ```
 - Should print `Display model: FIL 7T ...` and `Background: ... = W drive ...`.
 - A `no flicker fits` warning means `subjid` / `sesid` don't match the calibration. Fix before scanning.
+
+Grating check (participant in the scanner, after `makeStimuli`): the actual colour grating, red and blue stripes swapped in counterphase; same keys as above.
+```matlab
+checkGrating(subjid,sesid)
+```
+- `All r within +/-3% of 1` → the grating is isoluminant for this participant.
+- `Some r differ ...` → note which band and r (r > 1: red stripes too dark). If every band is off in the same direction, redo red, then `makeStimuli` and this check.
 
 ---
 
@@ -96,8 +103,9 @@ Each run:
 
 ## If something goes wrong
 
-- **Stop a run:** Esc during the run (saved as `stopped early`), Esc again to continue. Redo it with the **next** run number (don't reuse numbers; files get overwritten).
+- **Stop a run:** Esc during the run (saved as `stopped early`), Esc again to continue. Redo it with the run number + a letter (i.e., '1b') run number (don't reuse numbers; files get overwritten).
 - **Esc while waiting for the trigger:** nothing saved; rerun the same number.
+- **Esc during blue or red:** the settings so far are kept (`..._stoppedEarly.mat`) but no fit is made; rerun that task from the start.
 - **Errors:**
   - `made before gamma correction` → rerun `makeStimuli`.
   - `No stim_metadata` → `makeStimuli` not run for this `subjid` / `sesid`.
@@ -107,16 +115,12 @@ Each run:
 ---
 
 ## Notes
-
-- The display is dim on purpose: colour, BW and rest share one matched grey (~25–65 cd/m²). Purple-ish stripes are correct.
-- Later sessions (`sesid = '02'`, ...): blue, red, make stimuli, runs. The additivity and gamma checks don't need repeating unless the projector setup changes.
-- If projector settings, resolution, eye-tracker light or room lighting change mid-session: redo blue, red and make stimuli.
 - Keys: **1/2/3** participant, **5** scanner trigger, **Esc** experimenter.
 
 ## Data
 
 ```
-<dir_base>/<subjid>/colour/<sesid>/stimuli/logfiles/   calibration (bwFitData, redFitData, RBadditivity, GammaCheck) + stimulus metadata
+<dir_base>/<subjid>/colour/<sesid>/stimuli/logfiles/   calibration (bwFitData, redFitData, RBadditivity, GammaCheck, GratingCheck) + stimulus metadata
 <dir_base>/<subjid>/colour/<sesid>/Run_<n>/logfiles/   colour runs
 <dir_base>/<subjid>/mt/<sesid>/Run_<n>/logfiles/       MT runs
 ```
