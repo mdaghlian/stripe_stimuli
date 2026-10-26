@@ -4,6 +4,9 @@ fs=filesep;
 cfg_start;
 % LOAD DATA
 load([pathfile fs ['bwIsoLumData' isoFileTag(findIso_cfg) '.mat']]);
+if any(isnan(expPar(:,3)))%unfinished trials (run stopped early)
+    error('%s has unfinished trials: no fit made. Rerun the isoluminance task.', [pathfile fs 'bwIsoLumData' isoFileTag(findIso_cfg) '.mat']);
+end
 
 % DATA SORTING
 % isoLumData is a matrix with isolumance values of

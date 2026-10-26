@@ -76,7 +76,7 @@ startPointMem=zeros(1,nCond1);
 
 for c1=1:nCond1
     for rep=1:nReps
-        expPar=[expPar; c1 0 0];
+        expPar=[expPar; c1 0 NaN];%final setting NaN until the trial is done
     end
 end
 
@@ -328,16 +328,26 @@ try
             
             Screen('Flip',wptr,[],2);%2=on next screen refresh, and don't clear the frame buffer
          end
+         if escapeFlag, break; end%unfinished trial: its setting stays NaN
          expPar(trial,3)=lumInd-1;%record selected isoluminance (minus one since index range [1,256] but luminance range [0,255])
          startPointMem(eccCond)=lumInd-1;%remember for next trial
     end
     
-    % save the settings first, so nothing is lost at the end screen
-    save([pathfile fs ['bwIsoLumData' isoTag '.mat']], 'expPar','-mat');
-    if escapeFlag, endState='stopped early (Esc)'; else, endState='completed'; end
+    % save the settings first, so nothing is lost at the end screen.
+    % Stopped early: the settings so far go to a separate file and no fit is
+    % made, so makeStimuli cannot pick up a fit of a partial run (an earlier
+    % complete run's data and fit, if any, are left as they were).
+    if escapeFlag
+        dataFile=[pathfile fs ['bwIsoLumData' isoTag '_stoppedEarly.mat']];
+        endState='stopped early (Esc): NO fit made, rerun findIsoluminance_Blue. Settings so far';
+    else
+        dataFile=[pathfile fs ['bwIsoLumData' isoTag '.mat']];
+        endState='completed';
+    end
+    save(dataFile, 'expPar','-mat');
 
     % end screen (black, as the task surround), wait for Esc
-    waitAtEnd(wptr,0,sprintf('Blue isoluminance %s and saved:\n  %s',endState,[pathfile fs ['bwIsoLumData' isoTag '.mat']]));
+    waitAtEnd(wptr,0,sprintf('Blue isoluminance %s saved:\n  %s',endState,dataFile));
 
     RestoreCluts;%restore pre-session gammatable into graphics card
     ListenChar(0);
@@ -345,8 +355,10 @@ try
     ShowCursor;
     AvgRefreshT=flipTsum/flipTCount
     AvgRate=1/AvgRefreshT%note that the first tic is quite long and therefore deviation from 60Hz is expected
-    % fit across eccentricities (saves the fit file and shows figures)
-    analysis_BlueIsoLum(pathfile);
+    % fit across eccentricities (saves the fit file and shows figures); complete runs only
+    if ~escapeFlag
+        analysis_BlueIsoLum(pathfile);
+    end
 
 catch err
     RestoreCluts;

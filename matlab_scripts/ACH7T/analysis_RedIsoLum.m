@@ -4,6 +4,9 @@ fs=filesep;
 cfg_start;
 % LOAD DATA
 load([pathfile fs ['redIsoLumData' isoFileTag(findIso_cfg) '.mat']]);
+if any(isnan(expPar(:,3)))%unfinished trials (run stopped early)
+    error('%s has unfinished trials: no fit made. Rerun the isoluminance task.', [pathfile fs 'redIsoLumData' isoFileTag(findIso_cfg) '.mat']);
+end
 
 % DATA SORTING
 nCond1=max(expPar(:,1));
