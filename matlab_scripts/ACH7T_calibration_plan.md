@@ -232,6 +232,30 @@ design:         every stimulus and the background in linear units -> drive at th
 
 **Note on the BW control.** The published description of the paradigm (Nasr 2016) sets the BW grating's white point to the matched grey and its black to zero, so its mean is half the matched luminance. This plan matches the BW grating's *mean* to the colour grating instead, so that colour, BW and rest share one luminance (Section 5, step 3). Comparisons with the published results should take that design difference into account.
 
+### 4.2 Comparison: how Ai et al. (2025) set isoluminance
+
+Ai, Lin et al. (2025, *eLife* 13:RP93171) mapped colour-selective thin stripes in human V2 at 7T with the same kind of contrast: a red/blue grating against an achromatic grating. Their isoluminance procedure (Methods, "Color experiment") compares with ACH7T as follows.
+
+| Aspect | Ai et al. (2025) | Current ACH7T | This plan |
+|---|---|---|---|
+| Display model | projector calibrated with a PR-655 photometer "to have a linear luminance output"; per-channel handling and clipping not described | none | per-channel measured tables (step 1) |
+| Method | **minimum motion** (Anstis & Cavanagh 1983): chromatic and achromatic gratings on alternate frames, stepping π/2 in phase; the observer adjusts until the motion direction is bistable with equal durations | flicker photometry, 30 Hz | flicker photometry, 15 or 30 Hz (piloted); minimum motion as validation (step 4) |
+| Reference | blue at maximum (the projector's dimmest primary) | blue at maximum | blue at maximum |
+| Matches | **blue ↔ red and blue ↔ grey, each made directly** | blue ↔ grey, then red ↔ that grey | red ↔ blue and grey ↔ blue, each made directly (step 2) |
+| Eccentricity | 3 ranges: 0–3°, 3–8°, 8–16°; how the settings were applied across the field is not stated | 3 bands, log fit, clamped | bands within the screen, log fit, clamped |
+| Repetitions | 4 per range, averaged | 3 per band (pilot) | ≥ 4 per band, SD reported |
+| Where / surround | not stated | in the scanner, black surround | in the scanner, surround at the background luminance |
+| Matched values reported as | RGB index (on the linearised display, so proportional to luminance) | drive | luminance |
+| Grating | 0.2 cpd concentric rings, 46.7° × 35.9°, drifting radially at 0.8 cycles/s; 24 s blocks, 5 per condition | 0.4 cpd linear gratings | 0.4 cpd (or 0.2) linear gratings |
+| BW grating and rest luminance | not stated (rest is "uniform gray") | in drive units | all at L<sub>grey</sub> (step 3) |
+
+What this adds:
+
+- **Ai et al. independently made the two changes this plan proposes:** a linearised display and two independent, single-stage matches to blue at its maximum. Their stimuli gave reproducible colour stripes: an inter-session map correlation of r = 0.66 in the example subject, colour selectivity highest in the thin-stripe ROIs, and strongest at superficial depths.
+- **Both of their matches changed significantly with eccentricity.** Both are made against blue, so that agrees with the pilot, where the eccentricity effect sat in the blue step (blue ↔ grey) and red ↔ grey stayed stable.
+- **Minimum motion as the primary method** is a reasonable alternative to flicker. If the flicker pilot (step 2) gives a large spread, minimum motion is the fallback, not only a validation.
+- **It does not settle the open details:** whether their linearisation handled per-channel clipping or channel additivity, the luminance of the BW grating and the rest grey, and the surround during matching are all unreported.
+
 ---
 
 ## 5. Plan
@@ -353,7 +377,7 @@ After linearisation, the precision of the flicker match is the dominant term, so
 | Alternative | Verdict |
 |---|---|
 | **Cone-contrast / DKL design** (Derrington, Krauskopf & Lennie 1984†; Engel et al. 1997†; Mullen et al. 2007) | The textbook approach for colour fMRI. It changes the stimulus (lower saturation, modulation around neutral grey) and loses comparability with Nasr. **Keep red/blue, but compute and report the L, M and S cone contrasts** from the measured spectra and cone fundamentals (Stockman & Sharpe 2000†). |
-| **Minimum-motion photometry** instead of flicker (Anstis & Cavanagh 1983) | Often more sensitive and easier for naive observers. **Use as validation (step 4);** keep flicker photometry as the primary method. |
+| **Minimum-motion photometry** instead of flicker (Anstis & Cavanagh 1983) | Often more sensitive and easier for naive observers. **Use as validation (step 4);** keep flicker photometry as the primary method. Ai et al. (2025) used it as their primary method (Section 4.2), so it is the fallback if flicker matches are too variable. |
 | **A fixed photometric match** (V(λ) only) | Not adequate: individual differences exceed the precision needed. |
 | **More bit depth** | Not needed (0.012 from quantisation). |
 | **Luminance-noise masking** | Changes the stimulus and adds luminance energy; not recommended for this localiser. |
@@ -388,6 +412,7 @@ After linearisation, the precision of the flicker match is the dominant term, so
 Checked for this document:
 
 - Nasr S, Polimeni JR, Tootell RBH (2016). Interdigitated color- and disparity-selective columns within human visual cortical areas V2 and V3. *J Neurosci* 36(6):1841–1857. [PDF](https://www.jneurosci.org/content/jneuro/36/6/1841.full.pdf)
+- Ai H, Lin W, Liu C, Chen N, Zhang P (2025). Mesoscale functional organization and connectivity of color, disparity, and naturalistic texture in human second visual area. *eLife* 13:RP93171. [doi:10.7554/eLife.93171](https://doi.org/10.7554/eLife.93171)
 - Wagner G, Boynton RM (1972). Comparison of four methods of heterochromatic photometry. *JOSA* 62:1508. [doi:10.1364/JOSA.62.001508](https://doi.org/10.1364/JOSA.62.001508)
 - Bilodeau L, Faubert J (1997). Isoluminance and chromatic motion perception throughout the visual field. *Vision Res* 37:2073–2081.
 - Anstis S, Cavanagh P (1983). A minimum motion technique for judging equiluminance. In Mollon & Sharpe (eds), *Colour Vision: Physiology and Psychophysics*, pp. 155–166. [Demonstration](https://michaelbach.de/ot/col-flicker/)
