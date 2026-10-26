@@ -3,7 +3,7 @@ function analysis_RedIsoLum(pathfile)
 fs=filesep;
 cfg_start;
 % LOAD DATA
-load([pathfile fs 'redIsoLumData.mat']);
+load([pathfile fs ['redIsoLumData' isoFileTag(findIso_cfg) '.mat']]);
 
 % DATA SORTING
 nCond1=max(expPar(:,1));
@@ -62,4 +62,4 @@ set(gca,'FontSize',14);
 redValues2Use=round(polyval(params,log(eccList)))
 redParams=params
 
-save([pathfile fs 'redFitData.mat'],'redValues2Use','redParams','-mat');
+save([pathfile fs ['redFitData' isoFileTag(findIso_cfg) '.mat']],'redValues2Use','redParams','-mat');

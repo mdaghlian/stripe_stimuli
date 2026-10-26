@@ -67,7 +67,10 @@ findIso_cfg.ecc_mean = [
     ((findIso_cfg.cond_px_bands(2)+findIso_cfg.cond_px_bands(3))/2)
     ];
 findIso_cfg.fixSize = 4; % fixation dot size (pixels)
-% Flicker alternates every frame, so flicker frequency = refresh/2.
+% Flicker frequency = refresh / (2*framesPerField): 1 = 30 Hz at 60 Hz, 2 = 15 Hz.
+% With framesPerField ~= 1 the data and fits get a _<Hz>Hz suffix (isoFileTag),
+% and the analysis, makeStimuli and backgroundLuminance use those files instead.
+findIso_cfg.framesPerField = 1;
 % Abort if the measured refresh rate is not the expected one.
 findIso_cfg.expectedHz = cfg.expectedHz;
 findIso_cfg.toleranceHz = cfg.toleranceHz;
@@ -132,6 +135,12 @@ rbcheck_cfg.step          = 0.015;             % luminance step per key press (f
 rbcheck_cfg.jitter        = 0.10;              % start value 1 +/- jitter
 rbcheck_cfg.surround      = 'matched';         % 'matched' (grey at blue's luminance) or 'black'
 rbcheck_cfg.tolerance     = 0.03;              % |m - 1| treated as additive
+
+% Responses in the flicker tasks (findIsoluminance_Red/_Blue, checkAdditivityRB; flickerKeys.m)
+key_cfg = struct();
+key_cfg.device         = -3;    % KbCheck device: -3 = all keyboards and keypads (incl. button boxes)
+key_cfg.holdDelay      = 0.4;   % s a key must be held before it auto-repeats
+key_cfg.repeatInterval = 0.06;  % s between repeated steps while held (~16 steps/s)
 
 
 

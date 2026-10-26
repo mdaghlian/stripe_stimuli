@@ -3,7 +3,7 @@ function analysis_BlueIsoLum(pathfile)
 fs=filesep;
 cfg_start;
 % LOAD DATA
-load([pathfile fs 'bwIsoLumData.mat']);
+load([pathfile fs ['bwIsoLumData' isoFileTag(findIso_cfg) '.mat']]);
 
 % DATA SORTING
 % isoLumData is a matrix with isolumance values of
@@ -68,4 +68,4 @@ set(gca,'FontSize',14);
 bwValues2Use=round(polyval(params,log(eccList)))
 bwParams=params
 
-save([pathfile fs 'bwFitData.mat'], 'bwValues2Use','bwParams','-mat');
+save([pathfile fs ['bwFitData' isoFileTag(findIso_cfg) '.mat']], 'bwValues2Use','bwParams','-mat');

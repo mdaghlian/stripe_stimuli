@@ -13,12 +13,12 @@ Screen('FillRect', wptr, colour);
 Screen('Flip', wptr);
 fprintf('\n============================================================\n');
 fprintf('%s\n', message);
-fprintf('Press Esc (stimulus PC keyboard) to continue.\n');
+fprintf('Press Esc (any keyboard) to continue.\n');
 fprintf('============================================================\n');
 escapeKey = KbName('ESCAPE');
-KbReleaseWait;
+KbReleaseWait(-3);   % -3 = all keyboards and keypads
 while true
-    [~, ~, keyCode] = KbCheck;
+    [~, ~, keyCode] = KbCheck(-3);
     if keyCode(escapeKey), break; end
     WaitSecs(0.01);
 end

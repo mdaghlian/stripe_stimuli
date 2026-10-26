@@ -19,7 +19,7 @@ end
 if ~exist('name_oldsess','var')%set initial luminance values
     startPoint=findIso_cfg.startPointRed;
 else
-    load([dir_base fs name_subj fs 'colour' fs name_oldsess fs 'stimuli/logfiles/redFitData.mat']);
+    load([dir_base fs name_subj fs 'colour' fs name_oldsess fs 'stimuli/logfiles/redFitData' isoFileTag(findIso_cfg) '.mat']);
     startPoint=redValues2Use;
     clear redParams redValues2Use; 
 end
@@ -39,6 +39,7 @@ escapeKey=KbName('ESCAPE');
 DarkKey=KbName('1!');
 LightKey=KbName('2@');
 DoneKey=KbName('3#');
+keys=struct('dark',DarkKey,'light',LightKey,'done',DoneKey,'escape',escapeKey);
 
 %==========================================================================
 % end of user specified settings (do not edit below)
@@ -46,9 +47,11 @@ DoneKey=KbName('3#');
 
 % LOGFILE
 pathfile=[dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli' fs 'logfiles'];
+% file-name suffix for a non-default flicker rate (see isoFileTag)
+isoTag=isoFileTag(findIso_cfg);
 
 % GET VALUES FROM BLUE ISOLUMINANCE
-file2Check=[pathfile fs 'bwFitData.mat'];
+file2Check=[pathfile fs 'bwFitData' isoTag '.mat'];
 if ~exist(file2Check,'file')
     error('No such participant or session. Check inputs or make sure findIsoluminance_Blue has been run for this participant!');
 else
@@ -109,8 +112,7 @@ InvGammaTable=repmat(lumSpectrum',1,3);
 flipT=tic;
 flipTsum=0;
 flipTCount=0;
-keyTime=tic;
-keyReleased=0;%the start key must be released before the first step
+keyState=struct('key',0,'t0',0,'tLast',0,'needRelease',true);%the start key must be released before the first step
 trial=0;
 escapeFlag=0;
 allowDone=0;
@@ -130,18 +132,19 @@ try
     [offwptr,screenRect]=Screen('OpenOffscreenWindow',wptr,0);%open offscreen window into which we draw the "index colour image" which defines the appearance of the "colour wheel"
     flipinterval=Screen('GetFlipInterval',wptr); 
     ASSUMEDREFRESHRATE=1/flipinterval%assumed refresh rate
-    % check refresh rate (flicker frequency = refresh/2)
+    % check refresh rate (flicker frequency = refresh/(2*framesPerField))
     if abs(ASSUMEDREFRESHRATE-findIso_cfg.expectedHz)>findIso_cfg.toleranceHz
-        error('Measured refresh rate is %.1f Hz but %d Hz is expected (flicker = refresh/2). Change the display mode or findIso_cfg.expectedHz.', ...
+        error('Measured refresh rate is %.1f Hz but %d Hz is expected (flicker = refresh/(2*framesPerField)). Change the display mode or findIso_cfg.expectedHz.', ...
             ASSUMEDREFRESHRATE, findIso_cfg.expectedHz);
     end
+    fprintf('Flicker: %.1f Hz (%d frame(s) per field)\n',ASSUMEDREFRESHRATE/(2*findIso_cfg.framesPerField),findIso_cfg.framesPerField);
     
     % start screen (wait for key press)
     Screen('FillRect',wptr,[0 0 0],screenRect);
     Screen('Flip',wptr);%perform initial flip to set display to well defined initial display with background colour
     exitFlag=0;
     while ~exitFlag
-        [~,~,KeyCode]=KbCheck; 
+        [~,~,KeyCode]=KbCheck(key_cfg.device); 
         if KeyCode(DarkKey) 
            exitFlag=1;
         end
@@ -259,35 +262,29 @@ try
             end
             InvGammaTable(3,:)=[0 lumSpectrum(256) 0];%refresh green fixation spot
             
-            % response: one step per key press. A key must be released
-            % before it counts again, so holding it does not auto-repeat.
-            [KeyIsDown,~,KeyCode]=KbCheck;
-            if ~KeyIsDown
-                keyReleased=1;
-            elseif keyReleased==1 && toc(keyTime)>.1
-                keyReleased=0;
-                if KeyCode(escapeKey)%escape
+            % response: one step per press; holding dark/light repeats
+            % (key_cfg, flickerKeys.m). Listens to all keyboards.
+            [keyAction,keyState]=flickerKeys(keyState,keys,key_cfg);
+            if ~isempty(keyAction)
+                if strcmp(keyAction,'escape')
                     escapeFlag=1;
                     break
-                elseif KeyCode(DarkKey)%make darker 
-                    keyTime=tic;
+                elseif strcmp(keyAction,'dark')%make darker
                     lumInd=lumInd-1;
                     allowDone=1;
                     if lumInd<1
-						lumInd=1;
+                        lumInd=1;
                         InvGammaTable(3,:)=[lumSpectrum(256) 0 0];
                     end
-                elseif KeyCode(LightKey)%make brighter
-                    keyTime=tic;
+                elseif strcmp(keyAction,'light')%make brighter
                     lumInd=lumInd+1;
                     allowDone=1;
                     if lumInd>256
                         lumInd=256;
                         InvGammaTable(3,:)=[lumSpectrum(256) 0 0];
                     end
-                elseif KeyCode(DoneKey)%done
+                elseif strcmp(keyAction,'done')%done
                     if allowDone==1
-                        keyTime=tic;
                         doneFlag=1;
                         allowDone=0;
                     end
@@ -304,7 +301,7 @@ try
                     testM(c,:,:)=temp;
                 end
             end
-            newCLUT=squeeze(testM(mod(counter,2)+1,:,:));
+            newCLUT=squeeze(testM(mod(floor(counter/findIso_cfg.framesPerField),2)+1,:,:));
             Screen('LoadNormalizedGammaTable',wptr,newCLUT,2);
             flipTsum=flipTsum+toc(flipT);
             flipTCount=flipTCount+1;
@@ -317,11 +314,11 @@ try
     end
     
     % save the settings first, so nothing is lost at the end screen
-    save([pathfile fs 'redIsoLumData.mat'], 'expPar','-mat');
+    save([pathfile fs ['redIsoLumData' isoTag '.mat']], 'expPar','-mat');
     if escapeFlag, endState='stopped early (Esc)'; else, endState='completed'; end
 
     % end screen (black, as the task surround), wait for Esc
-    waitAtEnd(wptr,0,sprintf('Red isoluminance %s and saved:\n  %s',endState,[pathfile fs 'redIsoLumData.mat']));
+    waitAtEnd(wptr,0,sprintf('Red isoluminance %s and saved:\n  %s',endState,[pathfile fs ['redIsoLumData' isoTag '.mat']]));
 
     RestoreCluts;%restore pre-session gammatable into graphics card
     ListenChar(0);

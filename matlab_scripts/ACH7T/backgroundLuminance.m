@@ -5,7 +5,7 @@ function bg = backgroundLuminance(name_subj, name_sess)
 %   bg = backgroundLuminance(name_subj, name_sess)
 %
 %   Default (cal_cfg.background = 'matched'): the subject's colour-session
-%   flicker fits (<dir_base>/<subj>/colour/<sess>/stimuli/logfiles/bwFitData.mat)
+%   flicker fits (<dir_base>/<subj>/colour/<sess>/stimuli/logfiles/bwFitData<tag>.mat, tag from isoFileTag)
 %   give, per eccentricity, the grey drive that matched blue at full drive.
 %   Converted to luminance with displayModel(cal_cfg), its median over the
 %   screen is the background: the luminance of the colour grating, of the
@@ -36,7 +36,7 @@ if isnumeric(setting)
     bg.L = setting;
     bg.source = sprintf('fixed (cal_cfg.background = %g)', setting);
 else
-    fitFile = [cfg.dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli' fs 'logfiles' fs 'bwFitData.mat'];
+    fitFile = [cfg.dir_base fs name_subj fs 'colour' fs name_sess fs 'stimuli' fs 'logfiles' fs 'bwFitData' isoFileTag(findIso_cfg) '.mat'];
     if exist(fitFile, 'file') == 2
         s = load(fitFile, 'bwParams');
         % eccentricity map as in makeStimuli (image grid, full-screen px, clamped)

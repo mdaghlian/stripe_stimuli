@@ -75,6 +75,7 @@ escapeKey = KbName('ESCAPE');
 darkKey   = KbName('1!');
 lightKey  = KbName('2@');
 doneKey   = KbName('3#');
+keys = struct('dark', darkKey, 'light', lightKey, 'done', doneKey, 'escape', escapeKey);
 
 try
     screenid = cfg.screenid;
@@ -92,7 +93,7 @@ try
     DrawFormattedText(wptr, ['Look at the dot. Make the flicker disappear.\n\n' ...
         '1 = darker    2 = brighter    3 = done\n\nPress 1 to start'], 'center', 'center', 255);
     Screen('Flip', wptr);
-    waitKey(darkKey, escapeKey);
+    waitKey(darkKey, escapeKey, key_cfg.device);
 
     kMean = 1;
     for t = 1:size(trials, 1)
@@ -108,7 +109,7 @@ try
         end
         blueA = model.d('B', LB);                                % field A: pure blue at LB
         adjusted = false;
-        released = false;
+        ks = struct('key', 0, 't0', 0, 'tLast', 0, 'needRelease', true);
         frame = 0;
         while true
             if stage == 1
@@ -126,20 +127,17 @@ try
             Screen('Flip', wptr);
             frame = frame + 1;
 
-            [down, ~, kc] = KbCheck;
-            if ~down
-                released = true;
-            elseif released
-                released = false;
-                if kc(escapeKey)
+            % one step per press; holding 1/2 repeats (key_cfg, flickerKeys.m)
+            [action, ks] = flickerKeys(ks, keys, key_cfg);
+            switch action
+                case 'escape'
                     error('checkAdditivityRB: aborted with Escape.');
-                elseif kc(darkKey)
+                case 'dark'
                     value = value / (1 + rc.step); adjusted = true;
-                elseif kc(lightKey)
+                case 'light'
                     value = min(value * (1 + rc.step), maxValue); adjusted = true;
-                elseif kc(doneKey) && adjusted
-                    break
-                end
+                case 'done'
+                    if adjusted, break; end
             end
         end
         results(t, :) = [stage, p, start, value];
@@ -204,13 +202,13 @@ end
 end
 
 
-function waitKey(key, escapeKey)
-% Wait for a key press (after all keys are released).
-KbReleaseWait;
+function waitKey(key, escapeKey, device)
+% Wait for a key press on any keyboard in device (after all keys are released).
+KbReleaseWait(device);
 while true
-    [down, ~, kc] = KbCheck;
+    [down, ~, kc] = KbCheck(device);
     if down && kc(escapeKey), error('checkAdditivityRB: aborted with Escape.'); end
     if down && kc(key), break; end
 end
-KbReleaseWait;
+KbReleaseWait(device);
 end
