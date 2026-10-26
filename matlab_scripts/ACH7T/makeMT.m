@@ -39,7 +39,7 @@ px_per_deg = px_per_cm * cm_per_deg;               % in image px (half resolutio
 nPhaseSteps = mt_cfg.nPhaseSteps;
 period_px   = mt_cfg.ringPeriod_deg * px_per_deg;
 ringW_px    = mt_cfg.ringWidth_deg  * px_per_deg;
-aperture_px = mt_cfg.apertureFrac   * gh;
+aperture_px = mt_cfg.apertureFrac   * gh;     % Inf = no aperture (rings fill the screen)
 % Luminance: background = matched grey (display model). The rings keep the
 % luminance contrast that mt_cfg.ringLum on mt_cfg.bgLum (Nasr's drive
 % values, 101 on 127) has on this display.
@@ -49,7 +49,7 @@ ringRel = model.dL('W', mt_cfg.ringLum) / model.dL('W', mt_cfg.bgLum);   % ring 
 bgLum   = bg.drive;                                                       % background drive
 
 % -------------------------------------------------------------------------
-% Thin dark rings on grey inside a circular aperture
+% Thin dark rings on grey, inside a circular aperture (or the whole screen)
 % -------------------------------------------------------------------------
 [Xm, Ym] = meshgrid(1:gw, 1:gh);
 R = sqrt((Xm - (gw+1)/2).^2 + (Ym - (gh+1)/2).^2);
@@ -60,7 +60,7 @@ for step = 1:nPhaseSteps
     e = abs(mod(R - offset_px + period_px/2, period_px) - period_px/2);
     % ring coverage with a 1-px linear edge (anti-aliasing)
     cover = min(max(ringW_px/2 - e + 0.5, 0), 1);
-    % soft aperture edge
+    % soft aperture edge (no effect when aperture_px = Inf)
     cover = cover .* min(max(aperture_px - R + 0.5, 0), 1);
     drive = model.d('W', bg.L * (1 + (ringRel - 1) * cover));   % luminance -> drive
     imwrite(uint16(drive / 255 * 65535), ...

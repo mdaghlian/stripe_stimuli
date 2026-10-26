@@ -194,7 +194,7 @@ mt_cfg = struct();
 mt_cfg.ringPeriod_deg  = 2.0;   % centre-to-centre ring spacing (Nasr: 76.7 px)
 mt_cfg.ringWidth_deg   = 0.42;  % ring thickness (Nasr: 16 px)
 mt_cfg.speed_dps       = 5;     % radial speed, deg/s (Nasr: 3.2 px/frame at 60 Hz)
-mt_cfg.apertureFrac    = 0.5;   % aperture radius as a fraction of screen height (Nasr: full image height)
+mt_cfg.apertureFrac    = Inf;   % aperture radius as a fraction of screen height; Inf = rings fill the whole screen (Nasr: a 768-px disc)
 mt_cfg.ringLum         = 101;   % ring grey level (Nasr: 101)
 mt_cfg.bgLum           = 127;   % background grey level (Nasr: 127)
 mt_cfg.nPhaseSteps     = 48;    % phase steps per ring period: (5/2)*48/60 = 2 steps per frame at 60 Hz

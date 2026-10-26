@@ -8,8 +8,8 @@ function mtLocalizer(name_subj, name_sess, name_run)
 %   makeMT from mt_cfg (cfg_start.m), in degrees of visual angle, and
 %   loaded from <subj>/mt/<sess>/stimuli. Run makeMT first.
 %
-%   Stimulus: thin dark rings on a grey background inside a circular
-%   aperture. In moving blocks the rings expand/contract at
+%   Stimulus: thin dark rings on a grey background, filling the screen
+%   (or a circular aperture, mt_cfg.apertureFrac). In moving blocks the rings expand/contract at
 %   mt_cfg.speed_dps, reversing direction every mt_cfg.reversalTime s.
 %   In static blocks the rings are frozen where the motion stopped.
 %   Motion is driven by real elapsed time, not frame count, so speed does
@@ -77,7 +77,12 @@ if exist(metaFile,'file')~=2
     makeMT(name_subj, name_sess);
 end
 load(metaFile, 'stim_params_mt');
-if stim_params_mt.nPhaseSteps ~= mt_cfg.nPhaseSteps || ~isfield(stim_params_mt, 'background')
+ringFields = {'ringPeriod_deg', 'ringWidth_deg', 'apertureFrac', 'ringLum', 'bgLum', 'nPhaseSteps'};   % settings baked into the images
+stale = ~isfield(stim_params_mt, 'background');
+for f = ringFields
+    stale = stale || ~isfield(stim_params_mt.mt_cfg, f{1}) || ~isequal(stim_params_mt.mt_cfg.(f{1}), mt_cfg.(f{1}));
+end
+if stale
     % stimuli made before gamma correction / the matched background, or
     % before nPhaseSteps was chosen for a whole number of steps per frame
     fprintf('MT stimuli in %s are out of date - rebuilding them.\n', stimPath);
