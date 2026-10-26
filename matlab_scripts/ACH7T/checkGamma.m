@@ -80,8 +80,9 @@ for ic = 1:numel(gc.channels)
 end
 trials = repmat(1:numel(cond), 1, gc.nReps);
 trials = trials(randperm(numel(trials)));
-% columns of results: [condition, side (static: 1 dither left, 2 right), start drive, final drive]
-results = nan(numel(trials), 4);
+% columns of results: [condition, side (static: 1 dither left, 2 right), start drive, final drive,
+%                      trial duration (s), number of steps]
+results = nan(numel(trials), 6);
 
 KbName('UnifyKeyNames');
 escapeKey = KbName('ESCAPE');
@@ -146,6 +147,8 @@ try
         adjusted = false;
         ks = struct('key', 0, 't0', 0, 'tLast', 0, 'needRelease', true);
         frame = 0;
+        nSteps = 0;
+        tStart = GetSecs;
         while true
             showDither = strcmp(gc.mode, 'static') || mod(floor(frame / framesPerHalf), 2) == 0;
             Screen('FillRect', wptr, surround);
@@ -161,15 +164,15 @@ try
                 case 'escape'
                     error('checkGamma: aborted with Escape.');
                 case 'dark'
-                    value = max(value - 1, 0); adjusted = true;
+                    value = max(value - 1, 0); adjusted = true; nSteps = nSteps + 1;
                 case 'light'
-                    value = min(value + 1, 255); adjusted = true;
+                    value = min(value + 1, 255); adjusted = true; nSteps = nSteps + 1;
                 case 'done'
                     if adjusted, break; end
             end
         end
         Screen('Close', tex);
-        results(t, :) = [trials(t), side, start, value];
+        results(t, :) = [trials(t), side, start, value, GetSecs - tStart, nSteps];
         fprintf('%s [%.2f %.2f] (drives %d/%d): predicted %.1f, matched %d\n', ...
             k.chan, k.lo, k.hi, k.dLo, k.dHi, k.dPred, value);
         % short blank between trials
@@ -200,10 +203,28 @@ try
         fprintf('Some m differ from 1 by more than %.0f%%: the display model may be off at those levels.\n', 100 * gc.tolerance);
     end
 
-    GammaCheck = struct('trials', results, 'columns', {{'condition', 'side', 'start', 'final'}}, ...
-        'cond', cond, 'dMatch', dMatch, 'dMatch_sd', dMatch_sd, 'm', m, ...
-        'gammaObs', gammaObs, 'gammaModel', gammaModel, ...
-        'gcheck_cfg', gc, 'cal_cfg', cal_cfg, 'model', model.description, ...
+    % per-repetition m, and the luminance step of one drive level at each predicted match
+    mRep = nan(size(results, 1), 1);
+    for r = 1:size(results, 1)
+        k = cond(results(r, 1));
+        mRep(r) = model.dL(k.chan, results(r, 4)) / k.Lpred;
+    end
+    levelStep = nan(1, nC);
+    for i = 1:nC
+        k = cond(i);
+        levelStep(i) = (model.dL(k.chan, k.dPred + 0.5) - model.dL(k.chan, k.dPred - 0.5)) / k.Lpred;
+    end
+    modelInfo = rmfield(model, intersect(fieldnames(model), {'dL', 'd', 'L'}));   % tables, clip points, maxima
+
+    GammaCheck = struct('trials', results, ...
+        'columns', {{'condition', 'side', 'start', 'final', 'duration_s', 'nSteps'}}, ...
+        'mRep', mRep, 'cond', cond, 'dMatch', dMatch, 'dMatch_sd', dMatch_sd, 'm', m, ...
+        'levelStep', levelStep, 'gammaObs', gammaObs, 'gammaModel', gammaModel, ...
+        'gcheck_cfg', gc, 'cal_cfg', cal_cfg, 'key_cfg', key_cfg, ...
+        'model', model.description, 'modelInfo', modelInfo, ...
+        'display', struct('refreshHz', 1 / ifi, 'framesPerHalf', framesPerHalf, ...
+            'flickerHz', 1 / (2 * framesPerHalf * ifi), 'windowSize', [width height], ...
+            'outerR_px', outerR, 'innerR_px', innerR, 'screenid', screenid), ...
         'timestamp', datestr(now, 'yyyy-mm-dd_HHMMSS'));
     outFile = [logdir fs 'GammaCheck_' GammaCheck.timestamp '.mat'];
     save(outFile, 'GammaCheck');
@@ -225,7 +246,7 @@ catch err
     rethrow(err);
 end
 
-plotGammaCheck(GammaCheck, model);
+plotGammaCheck(GammaCheck, model, strrep(outFile, '.mat', '.png'));
 end
 
 
@@ -275,22 +296,41 @@ if sign(f(0.2)) ~= sign(f(8)), g = fzero(f, [0.2 8]); end
 end
 
 
-function plotGammaCheck(G, model)
-% Matched vs predicted luminance (fraction of the channel's maximum), per channel.
+function plotGammaCheck(G, model, pngFile)
+% m (model luminance at the match / predicted dither mean) per condition:
+% each repetition (dots), mean +/- SD, the +/- tolerance band, and the
+% luminance step of one drive level at that match (grey bar). Saved as PNG.
 chans = unique({G.cond.chan}, 'stable');
-figure('Name', 'Gamma check');
+tol = G.gcheck_cfg.tolerance;
+yr = max(2.6 * tol, max(abs(G.mRep - 1)) + 0.01);   % y range: tolerance band and every repetition
+fig = figure('Name', 'Gamma check', 'Color', 'w', 'Position', [100 100 360 * numel(chans) 380]);
 for ic = 1:numel(chans)
     c = chans{ic};
     idx = find(strcmp({G.cond.chan}, c));
-    pred = [G.cond(idx).Lpred] / model.dLmax.(c);
-    obs  = model.dL(c, G.dMatch(idx)) / model.dLmax.(c);
+    [~, order] = sort([G.cond(idx).Lpred]); idx = idx(order);   % left to right, so labels alternate in height
     subplot(1, numel(chans), ic); hold on;
-    plot([0 1], [0 1], 'k:');
-    plot(pred, obs, 'o', 'MarkerFaceColor', 'k');
-    axis square; xlim([0 1]); ylim([0 1]);
-    xlabel('predicted (dither mean)'); ylabel('model luminance at match');
-    title(c);
+    fill([0 1 1 0], 1 + tol * [-1 -1 1 1], [0.9 0.95 0.9], 'EdgeColor', 'none');
+    plot([0 1], [1 1], 'k:');
+    for j = 1:numel(idx)
+        i = idx(j);
+        x = G.cond(i).Lpred / model.dLmax.(c);
+        plot([x x], 1 + G.levelStep(i) * [-0.5 0.5], '-', 'Color', [0.6 0.6 0.6], 'LineWidth', 6);
+        reps = G.mRep(G.trials(:, 1) == i);
+        plot(x + 0.012 * (1:numel(reps)) - 0.006 * (numel(reps) + 1), reps, '.', 'Color', [0.3 0.3 0.8], 'MarkerSize', 12);
+        errorbar(x, G.m(i), std(reps), 'ko', 'MarkerFaceColor', 'k', 'LineWidth', 1.2);
+        text(x, 1 - yr * (0.82 + 0.1 * mod(j, 2)), sprintf('[%.2g %.2g]', G.cond(i).lo, G.cond(i).hi), ...
+            'HorizontalAlignment', 'center', 'FontSize', 8);
+    end
+    xlim([0 1]); ylim(1 + yr * [-1 1]); box on;
+    xlabel('predicted luminance (fraction of max)'); ylabel('m = matched / predicted');
+    title(sprintf('%s   (green: \\pm%.0f%%, grey: 1 drive level)', c, 100 * tol));
 end
+try
+    exportgraphics(fig, pngFile, 'Resolution', 120);
+catch
+    saveas(fig, pngFile);   % older MATLAB
+end
+fprintf('Figure saved: %s\n', pngFile);
 end
 
 
