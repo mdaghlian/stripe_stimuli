@@ -31,7 +31,8 @@ function checkGamma(name_subj, name_sess)
 %     predicted mean. m = 1: the model is right at that level; m > 1: the
 %     display is dimmer there than the model says. One drive level is the
 %     resolution of the match ('1 level', a few % at the lowest pair).
-%     Output: <dir_base>/<subj>/colour/<sess>/stimuli/logfiles/GammaCheck_<time>.mat
+%     Output: <dir_base>/<subj>/colour/<sess>/stimuli/logfiles/GammaCheck_<time>.mat,
+%     and a plot of m per square per channel (GammaCheck_<time>.png).
 
 close all;
 cfg_start;
@@ -213,6 +214,43 @@ catch err
     rethrow(err);
 end
 
+if gc.adjust, plotGammaCheck(GammaCheck, model, strrep(outFile, '.mat', '.png')); end
+end
+
+
+function plotGammaCheck(G, model, pngFile)
+% m (model luminance at the match / predicted mean) per square against its
+% predicted luminance, one panel per channel: the +/- tolerance band and the
+% luminance step of one drive level at that match (grey bar). Saved as PNG.
+sq = G.squares;
+chans = unique({sq.chan}, 'stable');
+tol = G.gcheck_cfg.tolerance;
+yr = max(2.6 * tol, max(abs(G.m - 1)) + 0.01);   % y range: tolerance band and every match
+fig = figure('Name', 'Gamma check', 'Color', 'w', 'Position', [100 100 360 * numel(chans) 380]);
+for ic = 1:numel(chans)
+    c = chans{ic};
+    idx = find(strcmp({sq.chan}, c));
+    [~, order] = sort([sq(idx).Lpred]); idx = idx(order);   % left to right, so labels alternate in height
+    subplot(1, numel(chans), ic); hold on;
+    fill([0 1 1 0], 1 + tol * [-1 -1 1 1], [0.9 0.95 0.9], 'EdgeColor', 'none');
+    plot([0 1], [1 1], 'k:');
+    for j = 1:numel(idx)
+        i = idx(j);
+        x = sq(i).Lpred / model.dLmax.(c);
+        plot([x x], 1 + sq(i).levelStep * [-0.5 0.5], '-', 'Color', [0.6 0.6 0.6], 'LineWidth', 6);
+        plot(x, G.m(i), 'ko', 'MarkerFaceColor', 'k', 'LineWidth', 1.2);
+        text(x, 1 - yr * (0.82 + 0.1 * mod(j, 2)), sq(i).label, 'HorizontalAlignment', 'center', 'FontSize', 8);
+    end
+    xlim([0 1]); ylim(1 + yr * [-1 1]); box on;
+    xlabel('predicted luminance (fraction of max)'); ylabel('m = matched / predicted');
+    title(sprintf('%s   (green: \\pm%.0f%%, grey: 1 drive level)', c, 100 * tol));
+end
+try
+    exportgraphics(fig, pngFile, 'Resolution', 120);
+catch
+    saveas(fig, pngFile);   % older MATLAB
+end
+fprintf('Figure saved: %s\n', pngFile);
 end
 
 
