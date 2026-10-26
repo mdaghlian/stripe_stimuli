@@ -37,8 +37,10 @@ Gamma check first (once per projector setup; anyone can do it, so it can be done
 ```matlab
 checkGamma(subjid,sesid)
 ```
+- One screen per channel (W, R, B), four squares each: a fine checkerboard inside a uniform surround. For each outlined square in turn: **1** darker / **2** brighter surround until the square disappears, **3** next square.
 - `All m within +/-3% of 1` → fine.
-- `Some m differ ...` → note which channel / level; carry on, but flag it (the display model may be off there).
+- `m differs ... at: ...` → note the channel / level; carry on, but flag it (the display model may be off there).
+- (`gcheck_cfg.adjust = false` in `cfg_start.m`: look only, no responses; **2** next screen, **1** previous, **Esc** end.)
 
 Blue:
 ```matlab
