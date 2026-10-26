@@ -41,8 +41,10 @@ function checkGamma(name_subj, name_sess)
 %
 %   Output: <dir_base>/<subj>/colour/<sess>/stimuli/logfiles/GammaCheck_<time>.mat
 %
-%   The dither must land on screen pixels 1:1. On a Retina Mac the
-%   framebuffer is scaled, so run this on the stimulus PC.
+%   The dither must land on screen pixels 1:1. On a Retina Mac set
+%   gcheck_cfg.useRetina = true (window at native resolution); if the
+%   display still scales, gcheck_cfg.ditherPx = 2 makes 2-px lines/checks
+%   (still invisible at the 7T viewing distance, ~25 cycles/deg).
 
 close all;
 cfg_start;
@@ -90,7 +92,14 @@ keys = struct('dark', darkKey, 'light', lightKey, 'done', doneKey, 'escape', esc
 
 try
     screenid = cfg.screenid;
-    wptr = Screen('OpenWindow', screenid, 0);
+    if isfield(gc, 'useRetina') && gc.useRetina
+        % Retina Mac: native resolution, so the dither is not rescaled by macOS
+        PsychImaging('PrepareConfiguration');
+        PsychImaging('AddTask', 'General', 'UseRetinaResolution');
+        wptr = PsychImaging('OpenWindow', screenid, 0);
+    else
+        wptr = Screen('OpenWindow', screenid, 0);
+    end
     ifi = checkRefreshRate(wptr, cfg);
     useIdentityGamma(wptr);
     Priority(MaxPriority(wptr));
@@ -233,7 +242,8 @@ mask = r <= w / 2 & r >= innerR;
 if strcmp(gc.mode, 'static')
     if side == 1, mask = mask & x < 0; else, mask = mask & x >= 0; end
 end
-if strcmp(gc.pattern, 'rows'), hiPix = mod(ys, 2) == 1; else, hiPix = mod(xs + ys, 2) == 1; end
+px = 1; if isfield(gc, 'ditherPx'), px = gc.ditherPx; end   % dither element size, pixels
+if strcmp(gc.pattern, 'rows'), hiPix = mod(floor(ys / px), 2) == 1; else, hiPix = mod(floor(xs / px) + floor(ys / px), 2) == 1; end
 d = k.dLo * ones(h, w);
 d(hiPix) = k.dHi;
 col = chanColour(k.chan, 1);

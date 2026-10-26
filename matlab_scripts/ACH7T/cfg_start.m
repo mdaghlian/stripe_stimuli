@@ -139,15 +139,19 @@ rbcheck_cfg.tolerance     = 0.03;              % |m - 1| treated as additive
 % Psychophysical gamma check (checkGamma.m): uniform field matched to a fine dither
 gcheck_cfg = struct();
 gcheck_cfg.channels  = {'W', 'R', 'B'};       % channels tested ('R', 'G', 'B', 'W'); the stimuli use R, B and W
-gcheck_cfg.pairs     = [0 1; 0 0.5; 0.5 1];   % dither [lo hi] luminances, fractions of each channel's maximum
+gcheck_cfg.pairs     = [0 1; 0 0.5; 0.5 1; 0 0.25];   % dither [lo hi] luminances, fractions of each channel's maximum ([0 0.25]: bottom of the curve, grating troughs)
 gcheck_cfg.nReps     = 2;                     % repetitions per channel x pair
 gcheck_cfg.mode      = 'flicker';             % 'flicker' (dither <-> uniform) or 'static' (side by side)
-gcheck_cfg.pattern   = 'rows';                % dither: 'rows' (1-px lines) or 'checker' (1-px checkerboard)
+gcheck_cfg.pattern   = 'rows';                % dither: 'rows' (lines) or 'checker' (checkerboard), ditherPx pixels each
 gcheck_cfg.band      = 2;                     % findIso_cfg eccentricity band used as the test field
 gcheck_cfg.flickerHz = 15;                    % full-cycle flicker rate in 'flicker' mode
 gcheck_cfg.jitter    = 10;                    % start drive = predicted +/- jitter (drive levels)
 gcheck_cfg.surround  = 'black';               % 'black' or 'mean' (the channel at the predicted match)
 gcheck_cfg.tolerance = 0.03;                  % |m - 1| treated as a correct model
+% Macs: on a Retina display macOS scales the window, so 1-px dither would not
+% land 1:1 on screen pixels (and scaling may blend neighbours wrongly).
+gcheck_cfg.useRetina = false;                 % true on a Retina Mac: open the window at native resolution (PsychImaging 'UseRetinaResolution')
+gcheck_cfg.ditherPx  = 1;                     % size of each dither line/check in pixels; use 2 if the display scales and native resolution is not possible
 
 % Responses in the flicker tasks (findIsoluminance_Red/_Blue, checkAdditivityRB, checkGamma; flickerKeys.m)
 key_cfg = struct();
