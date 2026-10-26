@@ -159,6 +159,34 @@ try
         WaitSecs(0.5);
     end
 
+    % Summary
+    k_reps = results(results(:, 1) == 1, 4);
+    m_mean = nan(size(p_list)); m_sd = m_mean;
+    for i = 1:numel(p_list)
+        v = results(results(:, 1) == 2 & results(:, 2) == p_list(i), 4);
+        m_mean(i) = mean(v); m_sd(i) = std(v);
+    end
+    fprintf('\n--- R + B additivity (%s) ---\n', model.description);
+    fprintf('k = %.3f (SD %.3f, %d reps)\n', mean(k_reps), std(k_reps), numel(k_reps));
+    for i = 1:numel(p_list)
+        fprintf('blue fraction %.2f: m = %.3f (SD %.3f)\n', p_list(i), m_mean(i), m_sd(i));
+    end
+    if all(abs(m_mean - 1) <= rc.tolerance)
+        fprintf('All m within +/-%.0f%% of 1: red + blue add as the model assumes.\n', 100 * rc.tolerance);
+    else
+        fprintf('Some m differ from 1 by more than %.0f%%: consider cal_cfg.rbCorrection = true in makeStimuli.\n', 100 * rc.tolerance);
+    end
+
+    RBadditivity = struct('trials', results, 'columns', {{'stage', 'blueFraction', 'start', 'final'}}, ...
+        'k_reps', k_reps, 'k', mean(k_reps), 'blueFractions', p_list, 'm', m_mean, 'm_sd', m_sd, ...
+        'rbcheck_cfg', rc, 'cal_cfg', cal_cfg, 'model', model.description, 'LB', LB, ...
+        'timestamp', datestr(now, 'yyyy-mm-dd_HHMMSS'));
+    outFile = [logdir fs 'RBadditivity_' RBadditivity.timestamp '.mat'];
+    save(outFile, 'RBadditivity');
+
+    % end screen (surround), wait for Esc
+    waitAtEnd(wptr, surroundDrive*[1 1 1], sprintf('R+B additivity check completed and saved:\n  %s', outFile));
+
     ListenChar(0);
     Priority(0);
     RestoreCluts;
@@ -173,31 +201,6 @@ catch err
     rethrow(err);
 end
 
-% Summary
-k_reps = results(results(:, 1) == 1, 4);
-m_mean = nan(size(p_list)); m_sd = m_mean;
-for i = 1:numel(p_list)
-    v = results(results(:, 1) == 2 & results(:, 2) == p_list(i), 4);
-    m_mean(i) = mean(v); m_sd(i) = std(v);
-end
-fprintf('\n--- R + B additivity (%s) ---\n', model.description);
-fprintf('k = %.3f (SD %.3f, %d reps)\n', mean(k_reps), std(k_reps), numel(k_reps));
-for i = 1:numel(p_list)
-    fprintf('blue fraction %.2f: m = %.3f (SD %.3f)\n', p_list(i), m_mean(i), m_sd(i));
-end
-if all(abs(m_mean - 1) <= rc.tolerance)
-    fprintf('All m within +/-%.0f%% of 1: red + blue add as the model assumes.\n', 100 * rc.tolerance);
-else
-    fprintf('Some m differ from 1 by more than %.0f%%: consider cal_cfg.rbCorrection = true in makeStimuli.\n', 100 * rc.tolerance);
-end
-
-RBadditivity = struct('trials', results, 'columns', {{'stage', 'blueFraction', 'start', 'final'}}, ...
-    'k_reps', k_reps, 'k', mean(k_reps), 'blueFractions', p_list, 'm', m_mean, 'm_sd', m_sd, ...
-    'rbcheck_cfg', rc, 'cal_cfg', cal_cfg, 'model', model.description, 'LB', LB, ...
-    'timestamp', datestr(now, 'yyyy-mm-dd_HHMMSS'));
-outFile = [logdir fs 'RBadditivity_' RBadditivity.timestamp '.mat'];
-save(outFile, 'RBadditivity');
-fprintf('Saved %s\n', outFile);
 end
 
 

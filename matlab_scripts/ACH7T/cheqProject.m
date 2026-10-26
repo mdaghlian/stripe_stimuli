@@ -232,22 +232,6 @@ try
     TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
     keys.report(t0, totalDuration);
 
-    % --- End screen ---
-    Screen('FillRect', wptr, [0 0 0], [0 0 width height]);
-    Screen('Flip', wptr);
-    exitFlag = 0;
-    while ~exitFlag
-        [~,~,KeyCode] = KbCheck;
-        if KeyCode(escapeKey), exitFlag = 1; end
-    end
-
-    Priority(0);
-    RestoreCluts;
-    Screen('CloseAll');
-    ShowCursor;
-    Screen('Preference','VisualDebugLevel',   oldVDL);
-    Screen('Preference','SuppressAllWarnings', oldSAW);
-
     % -----------------------------------------------------------------------
     % Compute onset/duration arrays for SPM-style saving
     % -----------------------------------------------------------------------
@@ -267,7 +251,17 @@ try
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'fix_cfg', '-mat');
-    fprintf('Run saved to: %s\n', FileName);
+
+    % --- End screen: matched grey, wait for Esc ---
+    if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end
+    waitAtEnd(wptr, round(stim_params_cheq.background.drive)*[1 1 1], sprintf('Run %d %s and saved:\n  %s', name_run, endState, FileName));
+
+    Priority(0);
+    RestoreCluts;
+    Screen('CloseAll');
+    ShowCursor;
+    Screen('Preference','VisualDebugLevel',   oldVDL);
+    Screen('Preference','SuppressAllWarnings', oldSAW);
 
     analysis_Stability(FileName);
     analysis_Fixation(FileName);

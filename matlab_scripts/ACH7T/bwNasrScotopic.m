@@ -296,22 +296,6 @@ try
     TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
     keys.report(t0, totalDuration);
 
-    % --- End screen ---
-    Screen('FillRect', wptr, [0 0 0], [0 0 width height]);
-    Screen('Flip', wptr);
-    exitFlag = 0;
-    while ~exitFlag
-        [~,~,KeyCode] = KbCheck;
-        if KeyCode(escapeKey), exitFlag = 1; end
-    end
-
-    Priority(0);
-    RestoreCluts;
-    Screen('CloseAll');
-    ShowCursor;
-    Screen('Preference','VisualDebugLevel',    oldVDL);
-    Screen('Preference','SuppressAllWarnings', oldSAW);
-
     % -----------------------------------------------------------------------
     % Save SPM-style condition file, grouped by the 4 unique visual
     % orientations (0/45/90/135 deg, mod 180) plus rest.
@@ -340,7 +324,17 @@ try
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
          'oriSeq', 'BlockList', 'stim_cpd', 'speed_dps', 'reversalTime', ...
          'px_per_deg_image', 'px_per_deg_screen', 'nPhaseSteps', 'fix_cfg', '-mat');
-    fprintf('Run saved to: %s\n', FileName);
+
+    % --- End screen: black (scotopic: keep the participant dark-adapted), wait for Esc ---
+    if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end
+    waitAtEnd(wptr, [0 0 0], sprintf('Run %d %s and saved:\n  %s', name_run, endState, FileName));
+
+    Priority(0);
+    RestoreCluts;
+    Screen('CloseAll');
+    ShowCursor;
+    Screen('Preference','VisualDebugLevel',    oldVDL);
+    Screen('Preference','SuppressAllWarnings', oldSAW);
 
     analysis_Stability(FileName);
     analysis_Fixation(FileName);

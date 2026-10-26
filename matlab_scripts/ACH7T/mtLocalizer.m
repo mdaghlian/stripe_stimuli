@@ -288,22 +288,6 @@ try
     TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
     keys.report(t0, totalDuration);
 
-    % --- End screen ---
-    Screen('FillRect', wptr, [0 0 0], [0 0 width height]);
-    Screen('Flip', wptr);
-    exitFlag = 0;
-    while ~exitFlag
-        [~,~,KeyCode] = KbCheck;
-        if KeyCode(escapeKey), exitFlag = 1; end
-    end
-
-    Priority(0);
-    RestoreCluts;
-    Screen('CloseAll');
-    ShowCursor;
-    Screen('Preference','VisualDebugLevel',    oldVDL);
-    Screen('Preference','SuppressAllWarnings', oldSAW);
-
     % -----------------------------------------------------------------------
     % Save SPM-style condition file (planned onsets, as bwNasrScotopic)
     % -----------------------------------------------------------------------
@@ -320,7 +304,17 @@ try
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
          'BlockList', 'staticFirst', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
-    fprintf('Run saved to: %s\n', FileName);
+
+    % --- End screen: matched grey, wait for Esc ---
+    if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end
+    waitAtEnd(wptr, round(bgLum)*[1 1 1], sprintf('Run %d %s and saved:\n  %s', name_run, endState, FileName));
+
+    Priority(0);
+    RestoreCluts;
+    Screen('CloseAll');
+    ShowCursor;
+    Screen('Preference','VisualDebugLevel',    oldVDL);
+    Screen('Preference','SuppressAllWarnings', oldSAW);
 
     analysis_Stability(FileName);
     analysis_Fixation(FileName);

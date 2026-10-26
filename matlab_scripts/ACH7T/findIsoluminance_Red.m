@@ -316,25 +316,20 @@ try
         startPointMem(eccCond)=lumInd-1;%remember for next trial
     end
     
-    % end screen
-    Screen('FillRect', wptr,[0 0 0],screenRect);
-    Screen('Flip',wptr);
-    exitFlag=0;
-    while ~exitFlag
-        [~,~,KeyCode]=KbCheck; 
-        if KeyCode(escapeKey)
-            exitFlag=1;
-        end
-    end
-    
-    % savings
+    % save the settings first, so nothing is lost at the end screen
+    save([pathfile fs 'redIsoLumData.mat'], 'expPar','-mat');
+    if escapeFlag, endState='stopped early (Esc)'; else, endState='completed'; end
+
+    % end screen (black, as the task surround), wait for Esc
+    waitAtEnd(wptr,0,sprintf('Red isoluminance %s and saved:\n  %s',endState,[pathfile fs 'redIsoLumData.mat']));
+
     RestoreCluts;%restore pre-session gammatable into graphics card
     ListenChar(0);
     Screen('CloseAll');
     ShowCursor;
     AvgRefreshT=flipTsum/flipTCount
     AvgRate=1/AvgRefreshT%note that the first tic is quite long and therefore deviation from 60Hz is expected
-    save([pathfile fs 'redIsoLumData.mat'], 'expPar','-mat');
+    % fit across eccentricities (saves the fit file and shows figures)
     analysis_RedIsoLum(pathfile)
 
 catch err

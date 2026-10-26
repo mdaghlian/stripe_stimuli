@@ -424,39 +424,6 @@ try
     TriggerTime=keys.triggerTimes(t0);%s since the first trigger (first = 0)
     keys.report(t0,length(BlockSeq)-nPad);
     
-    % end screen
-    Screen('FillRect',wptr,[0 0 0],[0 0 width height]);
-    % if name_run~=nRuns
-    %     Screen('TextSize',wptr,70);
-    %     DrawFormattedText(wptr,'Please close your eyes','center','center',255);    
-    % else
-    %     Screen('TextSize',wptr,70);
-    %     DrawFormattedText(wptr,'Thankyou for participating!','center','center',255);
-    % end
-    Screen('Flip',wptr);
-    exitFlag=0;
-    while ~exitFlag
-        [~,~,KeyCode]=KbCheck; 
-        if KeyCode(escapeKey)
-            exitFlag=1;
-        end
-    end
-     
-    Priority(0);
-    RestoreCluts;
-    Screen('CloseAll');
-    ShowCursor;
-    Screen('Preference','VisualDebugLevel',oldVisualDebugLevel);
-    Screen('Preference','SuppressAllWarnings',oldSuppressAllWarnings);
-
-    % stop eye tracking
-    if cfg.eye_track
-        Eyelink('StopRecording');
-        Eyelink('CloseFile');
-        Eyelink('ReceiveFile', 'etdata.edf', [FileName '_eyetrack.edf']);
-        Eyelink('Shutdown');
-    end
-    
     % savings
     names=cell(1,3);
     names{1}='rest';
@@ -475,6 +442,26 @@ try
     save([FileName '_Cond.mat'],'names','onsets','durations','-mat');
     save([FileName '_Eye.mat'],'EyelinkData','-mat');
     save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','fix_cfg','-mat');
+
+    % stop eye tracking (EDF copied before the end screen)
+    if cfg.eye_track
+        Eyelink('StopRecording');
+        Eyelink('CloseFile');
+        Eyelink('ReceiveFile', 'etdata.edf', [FileName '_eyetrack.edf']);
+        Eyelink('Shutdown');
+    end
+    
+    % end screen: matched grey (no desktop flash), wait for Esc
+    if escapePressed, endState='stopped early (Esc)'; else, endState='completed'; end
+    waitAtEnd(wptr,bgDrive*[1 1 1],sprintf('Run %d %s and saved:\n  %s',name_run,endState,FileName));
+
+    Priority(0);
+    RestoreCluts;
+    Screen('CloseAll');
+    ShowCursor;
+    Screen('Preference','VisualDebugLevel',oldVisualDebugLevel);
+    Screen('Preference','SuppressAllWarnings',oldSuppressAllWarnings);
+
     analysis_Stability(FileName);
     analysis_Fixation(FileName);
 catch err
