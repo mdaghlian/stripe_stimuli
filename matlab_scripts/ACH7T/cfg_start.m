@@ -153,7 +153,17 @@ gcheck_cfg.tolerance = 0.03;                  % |m - 1| treated as a correct mod
 gcheck_cfg.useRetina = false;                 % true on a Retina Mac: open the window at native resolution (PsychImaging 'UseRetinaResolution')
 gcheck_cfg.ditherPx  = 1;                     % size of each dither line/check in pixels; use 2 if the display scales and native resolution is not possible
 
-% Responses in the flicker tasks (findIsoluminance_Red/_Blue, checkAdditivityRB, checkGamma; flickerKeys.m)
+% Flicker check of the colour grating as built (checkGrating.m): red vs blue
+% stripes swapped in counterphase, observer scales red by r
+grcheck_cfg = struct();
+grcheck_cfg.bands     = [1 2 3];              % findIso_cfg eccentricity bands tested, one at a time
+grcheck_cfg.nReps     = 2;                    % repetitions per band
+grcheck_cfg.flickerHz = findIso_cfg.expectedHz / (2 * findIso_cfg.framesPerField);   % full-cycle rate, as the isoluminance tasks (30 Hz)
+grcheck_cfg.step      = 0.01;                 % red luminance step per key press (fraction)
+grcheck_cfg.jitter    = 0.10;                 % start value r = 1 +/- jitter
+grcheck_cfg.tolerance = 0.03;                 % |r - 1| treated as isoluminant (stripe contrast ~1.5%)
+
+% Responses in the flicker tasks (findIsoluminance_Red/_Blue, checkAdditivityRB, checkGamma, checkGrating; flickerKeys.m)
 key_cfg = struct();
 key_cfg.device         = -3;    % KbCheck device: -3 = all keyboards and keypads (incl. button boxes)
 key_cfg.holdDelay      = 0.4;   % s a key must be held before it auto-repeats
