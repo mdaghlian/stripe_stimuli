@@ -11,9 +11,16 @@ function mtLocalizer(name_subj, name_sess, name_run)
 %   Stimulus: thin dark rings on a grey background, filling the screen
 %   (or a circular aperture, mt_cfg.apertureFrac). In moving blocks the rings expand/contract at
 %   mt_cfg.speed_dps, reversing direction every mt_cfg.reversalTime s.
-%   In static blocks the rings are frozen where the motion stopped.
-%   Motion is driven by real elapsed time, not frame count, so speed does
-%   not depend on the refresh rate.
+%   In static blocks the rings are frozen where each moving block ends.
+%   Ring position is computed from the time within the block, not frame
+%   count, so speed does not depend on the refresh rate and every static
+%   block in a run shows exactly the same frame.
+%
+%   Ring phase: each run starts at mt_cfg.startPhaseFrac, cycled by run
+%   number (default [0 0.5]: odd runs 0, even runs half a period), so the
+%   frozen rings are not at the same eccentricities in every run.
+%   name_run must therefore be a whole number; for a repeated run, use the
+%   next unused number.
 %
 %   Timing: initial rest, then mt_cfg.nCycles x (static + moving) blocks,
 %   then end rest. Whether each pair starts with static or moving is
@@ -36,6 +43,11 @@ if ~exist('name_run',   'var'), name_run   = 1;          end
 % would silently reinterpret a char array as ASCII codes, so normalise.
 if ischar(name_run) || isstring(name_run)
     name_run = str2double(name_run);
+end
+% The ring phase is chosen by run number, and '3b' would become NaN
+% (RunNaN files), so stop here, before the window opens.
+if ~(isscalar(name_run) && isfinite(name_run) && name_run >= 1 && name_run == round(name_run))
+    error('name_run must be a whole number >= 1 (for a repeated run, use the next unused number).');
 end
 
 % -------------------------------------------------------------------------
@@ -95,6 +107,15 @@ bgLum          = stim_params_mt.bgLum;
 px_per_deg_image  = stim_params_mt.px_per_deg;    % half-resolution image px
 px_per_deg_screen = px_per_deg_image / stim_params_mt.cfg.image_frac;
 
+% Ring start phase for this run, cycled by run number through
+% mt_cfg.startPhaseFrac (fractions of a period). Every static block shows
+% this phase, so a fixed start would freeze the rings at the same
+% eccentricities in every run. With [0 0.5] the frozen-ring pattern cancels
+% over an even number of runs, and odd minus even runs isolates it.
+if isfield(mt_cfg, 'startPhaseFrac'), phaseFrac = mt_cfg.startPhaseFrac; else, phaseFrac = [0 0.5]; end
+iPhase    = mod(name_run - 1, numel(phaseFrac)) + 1;
+startStep = mod(round(phaseFrac(iPhase) * nPhaseSteps), nPhaseSteps);
+
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if exist(runDir,'dir')~=7
     mkdir(runDir);
@@ -137,6 +158,8 @@ totalDuration = t;
 
 fprintf('\n--- mtLocalizer: %s / %s / Run %d ---\n', name_subj, name_sess, name_run);
 fprintf('Pair order: %s then %s\n', pairTypes{1}, pairTypes{2});
+fprintf('Ring phase: start step %d of %d (%.2f deg; entry %d of startPhaseFrac, saved as startStep)\n', ...
+        startStep, nPhaseSteps, startStep / nPhaseSteps * ringPeriod_deg, iPhase);
 fprintf('Predicted run duration: %.1f s\n', totalDuration);
 t_end = datetime('now') + seconds(totalDuration);
 fprintf('Expected end time: %s\n\n', datestr(t_end, 'HH:MM:SS'));
@@ -204,18 +227,26 @@ try
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
     % columns: [elapsed, blockCode (0 rest, 1 static, 2 moving), phaseIdx, direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 5);
+    frameBlock   = zeros(size(LogData, 1), 1);   % BlockList index of each logged frame
     nLog         = 0;
     img_count    = 0;
 
-    % Frame timing: each frame's stimulus is computed for tF, its predicted
-    % onset (previous flip + one refresh interval, s since trigger 1). Drift
-    % phase accumulates stepsPerSec*dtF and is rounded to a step: a whole
-    % number of steps per frame at the expected refresh rate (smooth), and
-    % after a dropped frame it skips ahead, so speed and phase stay right.
+    % Frame timing: each frame's stimulus is computed for its predicted
+    % onset (previous flip + one refresh interval, s since trigger 1).
+    % Ring position is a function of the time within the moving block: the
+    % rings move out and back (direction reverses every reversalTime s), a
+    % triangle wave in steps. It is not accumulated frame by frame: that
+    % gave each frame's whole interval to one direction, so frames across a
+    % reversal moved the wrong way and the frozen static phase wandered by
+    % up to ~0.4 deg over a run. After a dropped frame it still skips ahead.
     stepsPerSec = speed_dps / ringPeriod_deg * nPhaseSteps;   % phase steps per second
-    stepPos     = 0;
-    tPrev       = vbl + ifi - StartTime;
-    phaseIdx    = 1;
+    ringStep    = @(tLocal) startStep + startDir * stepsPerSec * ...
+                  (reversalTime * mod(floor(tLocal / reversalTime), 2) + ...
+                   (-1) ^ floor(tLocal / reversalTime) * mod(tLocal, reversalTime));
+    % Static blocks show where every moving block ends; with the default
+    % settings (an even number of reversals per block) that is startStep.
+    staticIdx   = mod(round(ringStep(MovingTime)), nPhaseSteps) + 1;
+    phaseIdx    = staticIdx;
 
     % -----------------------------------------------------------------------
     % Main loop
@@ -223,16 +254,16 @@ try
     while true
         elapsed = vbl + ifi - StartTime;   % predicted onset of this frame
         if elapsed >= totalDuration, break; end
-        dtF   = elapsed - tPrev;
-        tPrev = elapsed;
 
         % --- Determine current block ---
         cumT = 0;
         currentBlock = BlockList(1);
+        curB         = 1;
         localElapsed = elapsed;
         for b = 1:numel(BlockList)
             if elapsed < cumT + BlockList(b).duration
                 currentBlock = BlockList(b);
+                curB         = b;
                 localElapsed = elapsed - cumT;
                 break
             end
@@ -246,18 +277,16 @@ try
                 blockCode = 0;
                 direction = 0;
             case 'static'
-                % rings frozen where the last moving block left them
+                % rings frozen where every moving block ends
                 blockCode = 1;
                 direction = 0;
+                phaseIdx  = staticIdx;
                 Screen('DrawTexture', wptr, ringTex(phaseIdx), [], [0 0 width height]);
             case 'moving'
                 % direction reverses every reversalTime s within the block
                 blockCode = 2;
-                segIdx    = floor(localElapsed / reversalTime);
-                direction = startDir * (-1) ^ segIdx;
-
-                stepPos  = stepPos + direction * stepsPerSec * dtF;
-                phaseIdx = mod(round(stepPos), nPhaseSteps) + 1;
+                direction = startDir * (-1) ^ floor(localElapsed / reversalTime);
+                phaseIdx  = mod(round(ringStep(localElapsed)), nPhaseSteps) + 1;
                 Screen('DrawTexture', wptr, ringTex(phaseIdx), [], [0 0 width height]);
         end
 
@@ -268,6 +297,7 @@ try
         % --- Log ---
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, blockCode, phaseIdx, direction, onsetT - t0];
+        frameBlock(nLog) = curB;
 
         % --- Key presses since the last frame (triggers are stored in keys) ---
         [respTimes, escapePressed] = keys.poll(t0);
@@ -288,27 +318,31 @@ try
         end
     end
 
-    LogData = LogData(1:nLog, :);
+    LogData    = LogData(1:nLog, :);
+    frameBlock = frameBlock(1:nLog);
     keys.release();
     TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
     keys.report(t0, totalDuration);
 
     % -----------------------------------------------------------------------
-    % Save SPM-style condition file (planned onsets, as bwNasrScotopic)
+    % Save SPM-style condition file: measured onsets/durations (flip time of
+    % each block's first frame); blocks not shown (Esc) are left out
     % -----------------------------------------------------------------------
+    [blockOnsetsMeas, blockDurMeas] = measuredBlockTiming(frameBlock, LogData(:, 5), blockOnsets, ifi);
     names     = {'rest', 'static', 'moving'};
     onsets    = cell(1, numel(names));
     durations = cell(1, numel(names));
     for n = 1:numel(names)
-        isThis       = strcmp({BlockList.type}, names{n});
-        onsets{n}    = blockOnsets(isThis);
-        durations{n} = [BlockList(isThis).duration];
+        isThis       = strcmp({BlockList.type}, names{n}) & ~isnan(blockOnsetsMeas);
+        onsets{n}    = blockOnsetsMeas(isThis);
+        durations{n} = blockDurMeas(isThis);
     end
 
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
-         'BlockList', 'staticFirst', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
+         'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', ...
+         'staticFirst', 'startStep', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
 
     % --- End screen: matched grey, wait for Esc ---
     if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end

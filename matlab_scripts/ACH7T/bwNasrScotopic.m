@@ -208,6 +208,7 @@ try
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
     % columns: [elapsed, isStim, orientationDeg, phaseStep, direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 6);
+    frameBlock   = zeros(size(LogData, 1), 1);   % BlockList index of each logged frame
     nLog         = 0;
     img_count    = 0;
 
@@ -233,10 +234,12 @@ try
         % --- Determine current block ---
         cumT = 0;
         currentBlock = BlockList(1);
+        curB         = 1;
         localElapsed = elapsed;
         for b = 1:numel(BlockList)
             if elapsed < cumT + BlockList(b).duration
                 currentBlock = BlockList(b);
+                curB         = b;
                 localElapsed = elapsed - cumT;
                 break
             end
@@ -271,6 +274,7 @@ try
         oriLog = NaN; if isStim, oriLog = currentBlock.ori; end
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, isStim, oriLog, phaseIdx, direction, onsetT - t0];
+        frameBlock(nLog) = curB;
 
         % --- Key presses since the last frame (triggers are stored in keys) ---
         [respTimes, escapePressed] = keys.poll(t0);
@@ -291,18 +295,23 @@ try
         end
     end
 
-    LogData = LogData(1:nLog, :);
+    LogData    = LogData(1:nLog, :);
+    frameBlock = frameBlock(1:nLog);
     keys.release();
     TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
     keys.report(t0, totalDuration);
 
     % -----------------------------------------------------------------------
     % Save SPM-style condition file, grouped by the 4 unique visual
-    % orientations (0/45/90/135 deg, mod 180) plus rest.
+    % orientations (0/45/90/135 deg, mod 180) plus rest. Measured onsets/
+    % durations (flip time of each block's first frame); blocks not shown
+    % (Esc) are left out.
     % -----------------------------------------------------------------------
-    isBlank = strcmp({BlockList.type}, 'blank');
-    rest_onset    = blockOnsets(isBlank);
-    rest_duration = [BlockList(isBlank).duration];
+    [blockOnsetsMeas, blockDurMeas] = measuredBlockTiming(frameBlock, LogData(:, 6), blockOnsets, ifi);
+    shown   = ~isnan(blockOnsetsMeas);
+    isBlank = strcmp({BlockList.type}, 'blank') & shown;
+    rest_onset    = blockOnsetsMeas(isBlank);
+    rest_duration = blockDurMeas(isBlank);
 
     names     = {'rest'};
     onsets    = {rest_onset};
@@ -314,14 +323,16 @@ try
                 isThisOri(b) = true;
             end
         end
+        isThisOri = isThisOri & shown;
         names{end+1}     = sprintf('ori%d', baseOriList(o));
-        onsets{end+1}     = blockOnsets(isThisOri);
-        durations{end+1}  = [BlockList(isThisOri).duration];
+        onsets{end+1}     = blockOnsetsMeas(isThisOri);
+        durations{end+1}  = blockDurMeas(isThisOri);
     end
 
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
+         'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', ...
          'oriSeq', 'BlockList', 'stim_cpd', 'speed_dps', 'reversalTime', ...
          'px_per_deg_image', 'px_per_deg_screen', 'nPhaseSteps', 'fix_cfg', '-mat');
 

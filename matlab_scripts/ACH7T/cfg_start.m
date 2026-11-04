@@ -226,5 +226,7 @@ mt_cfg.MovingTime      = 24;    % moving block, s
 mt_cfg.nCycles         = 5;     % number of static+moving pairs
 mt_cfg.reversalTime    = 2;     % moving blocks reverse direction every reversalTime s
 mt_cfg.startDir        = -1;    % first direction in each moving block: -1 contract, +1 expand (Nasr: contract)
+mt_cfg.startPhaseFrac  = [0 0.5]; % ring start phase (fraction of a period), cycled by run number: run 1 -> 0, run 2 -> 0.5, run 3 -> 0, ...
+                                  % every static block in a run shows this phase, so [0 0.5] cancels the frozen-ring pattern over an even number of runs
 % --- Misc ---
 mt_cfg.save_screen     = 0;     % set to 1 to save a screenshot every frame

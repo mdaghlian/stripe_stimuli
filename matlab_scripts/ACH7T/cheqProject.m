@@ -164,6 +164,7 @@ try
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
     % columns: [t isOn phaseIndex flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 4);
+    frameBlock   = zeros(size(LogData, 1), 1);   % BlockList index of each logged frame
     nLog         = 0;
     img_count    = 0;
 
@@ -179,9 +180,11 @@ try
         % --- Determine current block ---
         cumT = 0;
         currentBlock = BlockList(1);
+        curB         = 1;
         for b = 1:numel(BlockList)
             if elapsed < cumT + BlockList(b).duration
                 currentBlock = BlockList(b);
+                curB         = b;
                 break
             end
             cumT = cumT + BlockList(b).duration;
@@ -207,6 +210,7 @@ try
         isOn = strcmp(currentBlock.type,'on');
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, isOn, phaseIndex, onsetT - t0];
+        frameBlock(nLog) = curB;
 
         % --- Key presses since the last frame (triggers are stored in keys) ---
         [respTimes, escapePressed] = keys.poll(t0);
@@ -227,30 +231,34 @@ try
         end
     end
 
-    LogData = LogData(1:nLog, :);
+    LogData    = LogData(1:nLog, :);
+    frameBlock = frameBlock(1:nLog);
     keys.release();
     TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
     keys.report(t0, totalDuration);
 
     % -----------------------------------------------------------------------
-    % Compute onset/duration arrays for SPM-style saving
+    % Compute onset/duration arrays for SPM-style saving: measured (flip time
+    % of each block's first frame); blocks not shown (Esc) are left out
     % -----------------------------------------------------------------------
-    % Logical arrays for indexing
-    isOffBlock = strcmp({BlockList.type}, 'off');
-    isOnBlock  = strcmp({BlockList.type}, 'on');
-    rest_onset = blockOnsets(isOffBlock);
-    stim_onset = blockOnsets(isOnBlock);
+    [blockOnsetsMeas, blockDurMeas] = measuredBlockTiming(frameBlock, LogData(:, 4), blockOnsets, ifi);
+    shown      = ~isnan(blockOnsetsMeas);
+    isOffBlock = strcmp({BlockList.type}, 'off') & shown;
+    isOnBlock  = strcmp({BlockList.type}, 'on')  & shown;
+    rest_onset = blockOnsetsMeas(isOffBlock);
+    stim_onset = blockOnsetsMeas(isOnBlock);
 
     names     = {'rest', 'checkerboard'};
     onsets    = {rest_onset, stim_onset};
-    rest_durations = [BlockList(isOffBlock).duration];
-    stim_durations = [BlockList(isOnBlock).duration];
+    rest_durations = blockDurMeas(isOffBlock);
+    stim_durations = blockDurMeas(isOnBlock);
 
     durations = {rest_durations, stim_durations};
 
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
-    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'fix_cfg', '-mat');
+    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'fix_cfg', ...
+         'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', '-mat');
 
     % --- End screen: matched grey, wait for Esc ---
     if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end

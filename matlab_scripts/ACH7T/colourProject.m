@@ -337,13 +337,14 @@ try
         if tF>=length(BlockSeq)-nPad, break; end%because of the appended zeros, we subtract nPad here
         dtF=tF-tPrev;
         tPrev=tF;
+        newOnset=0;%1 rest, 2 bw, 3 colour: this frame starts a block (onset = its flip time, logged after the flip)
         fixTask.update(tF);
-        if (BlockSeq(floor(tF+1))==0) 
+        if (BlockSeq(floor(tF+1))==0)
             Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
             fixTask.draw(wptr);
             if OnsetPos==0
                 OnsetPos=1;
-                rest_onset=[rest_onset tF];
+                newOnset=1;
             end
         else            
             OnsetPos=0;            
@@ -361,9 +362,9 @@ try
             else 
                 if FadePos==0
                     if BlockSeq(floor(tF+1))<=nConditions%save onset times (BW conditions 1..nConditions/2 have codes 2..nConditions)
-                        bw_onset=[bw_onset tF];
+                        newOnset=2;
                     else
-                        colour_onset=[colour_onset tF];
+                        newOnset=3;
                     end
                     fadeStart=tF;
                     FadeNeg=0;
@@ -386,6 +387,13 @@ try
         [vbl,onsetT]=Screen('Flip',wptr);
         nLog=nLog+1;
         LogData(nLog,:)=[tempLog onsetT-t0];
+        % block onsets are when the block's first frame actually appeared,
+        % not its predicted time (they differ after a dropped frame)
+        switch newOnset
+            case 1, rest_onset=[rest_onset onsetT-t0];
+            case 2, bw_onset=[bw_onset onsetT-t0];
+            case 3, colour_onset=[colour_onset onsetT-t0];
+        end
         
         % key presses since the last frame (triggers are stored in keys)
         [respTimes,escapePressed]=keys.poll(t0);
