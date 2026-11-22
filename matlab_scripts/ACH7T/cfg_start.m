@@ -110,12 +110,14 @@ stim_cfg.FadingTime=1; % duration of each fade in / fade out, s (1 s originally)
 % across eccentricity for MD, Stockman-Sharpe fundamentals) and keeps the dark
 % stripes off black.
 stim_cfg.bwContrast=0.7;
-% Colour paradigm background/rest: true = the matched grey at each eccentricity
-% (makeStimuli writes stimuli/background.png), so the background equals the
-% BW grating's mean and the colour grating's luminance everywhere; false = one
-% uniform grey (median of the matched grey; brighter than the gratings' mean
-% in the central few degrees when the match varies with eccentricity).
-stim_cfg.radialBackground=true;
+% Colour paradigm background/rest: false = one uniform grey (median of the
+% matched grey; brighter than the gratings' mean in the central few degrees
+% when the match varies with eccentricity: ~0.6 x at 0.7 deg for sub-1102_c, so
+% each grating block darkens the centre; equal for bw and colour, so it cancels
+% in bw vs colour but not in each vs rest). true = the matched grey at each
+% eccentricity (makeStimuli writes stimuli/background.png): no luminance step
+% at block onsets, but the radial gradient is visible at rest.
+stim_cfg.radialBackground=false;
 
 
 %% DISPLAY MODEL (displayModel.m) - makeStimuli builds the colour and BW
