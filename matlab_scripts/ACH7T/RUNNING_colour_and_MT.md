@@ -127,4 +127,10 @@ Each run:
 <dir_base>/<subjid>/colour/<sesid>/Run_<n>/logfiles/   colour runs
 <dir_base>/<subjid>/mt/<sesid>/Run_<n>/logfiles/       MT runs
 ```
+Each run's logfiles folder holds:
+- `..._Cond.mat`: SPM names, onsets and durations, measured from the flip times.
+- `..._events.tsv`: the same blocks as a BIDS-style table (orientation and colour, or the MT ring phase).
+- `....mat`: everything else (frame log, triggers, responses, fixation, settings, run info).
+- `..._crash.mat`: only written if MATLAB stopped with an error mid-run.
+
 Copy the whole `<subjid>` folder off the stimulus PC at the end.

@@ -279,6 +279,8 @@ try
     % columns: [elapsed, blockCode (0 rest, 1 static, 2 moving), phaseIdx (ring frame 1..nPhaseSteps, 0 = rest), direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 5);
     frameBlock   = zeros(size(LogData, 1), 1);   % BlockList index of each logged frame
+    frameMissed  = nan(size(LogData, 1), 1);     % Screen('Flip') missed flag per frame (> 0: deadline missed)
+    frameFix     = nan(size(LogData, 1), 1);     % fixation state shown on each frame (1 A, 2 B)
     nLog         = 0;
     img_count    = 0;
 
@@ -333,12 +335,14 @@ try
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        [vbl, onsetT] = Screen('Flip', wptr);
+        [vbl, onsetT, ~, missedF] = Screen('Flip', wptr);
 
         % --- Log ---
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, blockCode, phaseIdx, direction, onsetT - t0];
         frameBlock(nLog) = curB;
+        frameMissed(nLog) = missedF;
+        frameFix(nLog)    = fixTask.state;
 
         % --- Key presses since the last frame (triggers are stored in keys) ---
         [respTimes, escapePressed] = keys.poll(t0);
@@ -359,11 +363,19 @@ try
         end
     end
 
-    LogData    = LogData(1:nLog, :);
-    frameBlock = frameBlock(1:nLog);
+    tLoopEnd    = GetSecs - t0;
+    LogData     = LogData(1:nLog, :);
+    frameBlock  = frameBlock(1:nLog);
+    frameMissed = frameMissed(1:nLog);
+    frameFix    = frameFix(1:nLog);
     keys.release();
-    TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
+    TriggerTime  = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
+    ResponseTime = keys.responses - t0;     % every response-key press, s since the first trigger
     keys.report(t0, totalDuration);
+    RunInfo     = runInfo(wptr, ifi, t0);   % date/time, versions, git commit, screen
+    frameTiming = frameTimingSummary(LogData(:, 5), frameMissed, ifi);
+    completed   = ~escapePressed;
+    LogColumns  = {'t_predicted', 'blockCode', 'phaseIdx', 'direction', 'flipOnset'};
 
     % -----------------------------------------------------------------------
     % Save SPM-style condition file: measured onsets/durations (flip time of
@@ -379,11 +391,23 @@ try
         durations{n} = blockDurMeas(isThis);
     end
 
+    % BIDS-style events table (blocks shown); ring phase in deg of radius
+    % (static: shown; moving: start of the block)
+    shownB = ~isnan(blockOnsetsMeas);
+    events = struct('onset', blockOnsetsMeas(shownB), 'duration', blockDurMeas(shownB), ...
+        'trial_type', {{BlockList(shownB).type}}, ...
+        'ring_phase_deg', mod(blockStep(shownB), nPhaseSteps) / nPhaseSteps * ringPeriod_deg, ...
+        'planned_onset', blockOnsets(shownB), 'planned_duration', [BlockList(shownB).duration], ...
+        'block', find(shownB));
+    writeEventsTsv([FileName '_events.tsv'], events);
+
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
-    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'gammaInfo', ...
-         'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', ...
-         'staticFirst', 'blockStep', 'phaseOffsetFrac', 'rngState', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
+    save([FileName '.mat'], 'FixationData', 'LogData', 'LogColumns', 'TriggerTime', 'ResponseTime', 'gammaInfo', ...
+         'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', 'frameMissed', 'frameFix', 'frameTiming', ...
+         'staticFirst', 'blockStep', 'phaseOffsetFrac', 'rngState', 'completed', 'tLoopEnd', 'totalDuration', ...
+         'RunInfo', 'cfg', 'cal_cfg', 'mt_cfg', 'fix_cfg', 'stim_params_mt', 'bgLum', 'ifi', 't0', ...
+         'px_per_deg_image', 'px_per_deg_screen', '-mat');
 
     % --- End screen: matched grey, wait for Esc ---
     if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end
@@ -401,6 +425,16 @@ try
 
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    % keep whatever was recorded (frame log, triggers, fixation) for an error mid-run
+    if exist('t0', 'var')
+        try
+            crashFile = [FileName '_crash.mat'];
+            if exist('keys', 'var'), crashTriggers = keys.triggers; crashResponses = keys.responses; end %#ok<NASGU>
+            save(crashFile, '-regexp', '^(?!ringImgs$|img$|imageArray$).');
+            fprintf(2, 'Error during the run: workspace saved to %s\n', crashFile);
+        catch
+        end
+    end
     Priority(0);
     RestoreCluts;
     Screen('CloseAll');

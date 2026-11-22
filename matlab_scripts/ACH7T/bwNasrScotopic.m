@@ -103,6 +103,10 @@ FileName = [runDir fs 'logfiles' fs name_subj '_' name_sess ...
 % Orientation sequence: random starting orientation, then +oriStep deg
 % per block (wrapped to 0-360).
 % -------------------------------------------------------------------------
+% MATLAB starts every session with the same random seed, so without this
+% the starting orientation would repeat whenever MATLAB is restarted.
+rng('shuffle');
+rngState    = rng;
 nOriOptions = 360 / oriStep;
 startOri    = oriStep * (randi(nOriOptions) - 1);
 oriSeq      = mod(startOri + (0:nBlocks-1) * oriStep, 360);   % deg, length nBlocks
@@ -209,6 +213,8 @@ try
     % columns: [elapsed, isStim, orientationDeg, phaseStep, direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 6);
     frameBlock   = zeros(size(LogData, 1), 1);   % BlockList index of each logged frame
+    frameMissed  = nan(size(LogData, 1), 1);     % Screen('Flip') missed flag per frame (> 0: deadline missed)
+    frameFix     = nan(size(LogData, 1), 1);     % fixation state shown on each frame (1 A, 2 B)
     nLog         = 0;
     img_count    = 0;
 
@@ -268,13 +274,15 @@ try
 
         fixTask.update(elapsed);
         fixTask.draw(wptr);
-        [vbl, onsetT] = Screen('Flip', wptr);
+        [vbl, onsetT, ~, missedF] = Screen('Flip', wptr);
 
         % --- Log ---
         oriLog = NaN; if isStim, oriLog = currentBlock.ori; end
         nLog = nLog + 1;
         LogData(nLog, :) = [elapsed, isStim, oriLog, phaseIdx, direction, onsetT - t0];
         frameBlock(nLog) = curB;
+        frameMissed(nLog) = missedF;
+        frameFix(nLog)    = fixTask.state;
 
         % --- Key presses since the last frame (triggers are stored in keys) ---
         [respTimes, escapePressed] = keys.poll(t0);
@@ -295,11 +303,19 @@ try
         end
     end
 
-    LogData    = LogData(1:nLog, :);
-    frameBlock = frameBlock(1:nLog);
+    tLoopEnd    = GetSecs - t0;
+    LogData     = LogData(1:nLog, :);
+    frameBlock  = frameBlock(1:nLog);
+    frameMissed = frameMissed(1:nLog);
+    frameFix    = frameFix(1:nLog);
     keys.release();
-    TriggerTime = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
+    TriggerTime  = keys.triggerTimes(t0);   % s since the first trigger (first = 0)
+    ResponseTime = keys.responses - t0;     % every response-key press, s since the first trigger
     keys.report(t0, totalDuration);
+    RunInfo     = runInfo(wptr, ifi, t0);   % date/time, versions, git commit, screen
+    frameTiming = frameTimingSummary(LogData(:, 6), frameMissed, ifi);
+    completed   = ~escapePressed;
+    LogColumns  = {'t_predicted', 'isStim', 'orientationDeg', 'phaseStep', 'direction', 'flipOnset'};
 
     % -----------------------------------------------------------------------
     % Save SPM-style condition file, grouped by the 4 unique visual
@@ -329,12 +345,24 @@ try
         durations{end+1}  = blockDurMeas(isThisOri);
     end
 
+    % BIDS-style events table (blocks shown); orientation as drawn (0-360,
+    % mod 180 for the Cond.mat grouping)
+    evType = {BlockList(shown).type};
+    evType(strcmp(evType, 'blank')) = {'rest'};
+    evType(strcmp(evType, 'stim'))  = {'grating'};
+    events = struct('onset', blockOnsetsMeas(shown), 'duration', blockDurMeas(shown), ...
+        'trial_type', {evType}, 'orientation', [BlockList(shown).ori], ...
+        'planned_onset', blockOnsets(shown), 'planned_duration', [BlockList(shown).duration], ...
+        'block', find(shown));
+    writeEventsTsv([FileName '_events.tsv'], events);
+
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
-    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'gammaInfo', ...
-         'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', ...
+    save([FileName '.mat'], 'FixationData', 'LogData', 'LogColumns', 'TriggerTime', 'ResponseTime', 'gammaInfo', ...
+         'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', 'frameMissed', 'frameFix', 'frameTiming', ...
          'oriSeq', 'BlockList', 'stim_cpd', 'speed_dps', 'reversalTime', ...
-         'px_per_deg_image', 'px_per_deg_screen', 'nPhaseSteps', 'fix_cfg', '-mat');
+         'px_per_deg_image', 'px_per_deg_screen', 'nPhaseSteps', 'fix_cfg', ...
+         'completed', 'tLoopEnd', 'totalDuration', 'rngState', 'RunInfo', 'cfg', 'cal_cfg', 'scot_cfg', 'stim_params_scot', 'ifi', 't0', '-mat');
 
     % --- End screen: black (scotopic: keep the participant dark-adapted), wait for Esc ---
     if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end
@@ -352,6 +380,16 @@ try
 
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    % keep whatever was recorded (frame log, triggers, fixation) for an error mid-run
+    if exist('t0', 'var')
+        try
+            crashFile = [FileName '_crash.mat'];
+            if exist('keys', 'var'), crashTriggers = keys.triggers; crashResponses = keys.responses; end %#ok<NASGU>
+            save(crashFile, '-regexp', '^(?!gratingImgs$|img$|imageArray$|BGimage$).');
+            fprintf(2, 'Error during the run: workspace saved to %s\n', crashFile);
+        catch
+        end
+    end
     Priority(0);
     RestoreCluts;
     Screen('CloseAll');

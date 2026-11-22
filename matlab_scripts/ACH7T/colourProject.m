@@ -72,6 +72,10 @@ if exist([stimCheck sprintf('%d',nSteps) '.png'],'file')~=2 || exist([stimCheck 
 end
 
 % EXPERIMENTAL PARADIGM
+% MATLAB starts every session with the same random seed, so without this
+% the block order would repeat whenever MATLAB is restarted (saved as rngState).
+rng('shuffle');
+rngState=rng;
 if name_run == 1
     % --- First run: generate a fresh pseudorandom block sequence ---
     redo=1;
@@ -220,6 +224,30 @@ for i=1:length(Block)
 end
 
 
+% Block table, one row per rest period or condition block (both halves of
+% a condition = one block of BlockTime): used for the measured onsets and
+% durations in _Cond.mat / _events.tsv. Condition c (1..nConditions):
+% colour label colourCondLabels{ceil(c/nOri)}, orientation
+% orientationList(mod(c-1,nOri)+1), the same mapping as the textures.
+nOri=length(orientationList);
+blkCond=[]; blkDur=[];
+for i=1:length(Block)
+    if Block(i)==0
+        if DelayTime>0, blkCond(end+1)=0; blkDur(end+1)=DelayTime; end %#ok<AGROW>
+    elseif mod(Block(i),2)==0%first half of a condition (code 2c)
+        blkCond(end+1)=Block(i)/2; blkDur(end+1)=BlockTime; %#ok<AGROW>
+    end
+end
+blockOnsets=[0 cumsum(blkDur(1:end-1))];%planned, s since trigger 1
+blkType=repmat({'rest'},1,numel(blkCond));
+blkColour=repmat({'n/a'},1,numel(blkCond));
+blkOri=nan(1,numel(blkCond));
+for b=find(blkCond>0)
+    blkColour{b}=colourCondLabels{ceil(blkCond(b)/nOri)};
+    blkType{b}=blkColour{b};
+    blkOri(b)=orientationList(mod(blkCond(b)-1,nOri)+1);
+end
+
 totalFrames = length(BlockSeq);
 totalMins   = floor(totalFrames / 60);
 remainSecs  = mod(totalFrames, 60);
@@ -295,7 +323,12 @@ try
     % with its own GetSecs time; see ScannerKeys.m)
     keys=ScannerKeys(TriggerSign,DetectKey,escapeKey);
     t0=keys.waitForTrigger();%GetSecs time of the first trigger = time zero of the run
-    
+    if cfg.eye_track
+        % EDF sync: the message is time-stamped by the tracker when sent;
+        % its text gives the run time (s since trigger 1) at that moment
+        Eyelink('Message','SYNC_TRIGGER1 t=%.4f',GetSecs-t0);
+    end
+
     % flip start screen after trigger (fixation task starts)
     fixTask.start();
     Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
@@ -315,12 +348,15 @@ try
     bw_onset=[];
     colour_onset=[];
     EyelinkData=[];
+    names3={'rest','bw','colour'};%newOnset codes 1..3 (eye tracker messages)
     nPad=ceil(FadingTime);
     BlockSeq=[BlockSeq zeros(1,nPad)];%append zeros to fade out at the end of the run even if DelayTime is set to 0.
     BlockSeqDir=[BlockSeqDir zeros(1,nPad)];
     %Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
     %columns: [t blockCode phaseStep alpha flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData=nan(ceil((length(BlockSeq)+10)*240),5);
+    frameMissed=nan(size(LogData,1),1);%Screen('Flip') missed flag per frame (>0: deadline missed)
+    frameFix=nan(size(LogData,1),1);%fixation state shown on each frame (1 A, 2 B): changes on screen = flipOnset where it switches
     nLog=0;
     img_count=0;
     
@@ -384,9 +420,14 @@ try
             fixTask.draw(wptr);
         end
         tempLog=[tF BlockSeq(floor(tF)+1) cnt alphaImg];
-        [vbl,onsetT]=Screen('Flip',wptr);
+        [vbl,onsetT,~,missedF]=Screen('Flip',wptr);
         nLog=nLog+1;
         LogData(nLog,:)=[tempLog onsetT-t0];
+        frameMissed(nLog)=missedF;
+        frameFix(nLog)=fixTask.state;
+        if cfg.eye_track && newOnset>0
+            Eyelink('Message','BLOCK_ONSET %s t=%.4f',names3{newOnset},onsetT-t0);
+        end
         % block onsets are when the block's first frame actually appeared,
         % not its predicted time (they differ after a dropped frame)
         switch newOnset
@@ -427,29 +468,53 @@ try
         end
     end
     
+    tLoopEnd=GetSecs-t0;
+    if cfg.eye_track, Eyelink('Message','RUN_END t=%.4f',tLoopEnd); end
     LogData=LogData(1:nLog,:);
+    frameMissed=frameMissed(1:nLog);
+    frameFix=frameFix(1:nLog);
     keys.release();
     TriggerTime=keys.triggerTimes(t0);%s since the first trigger (first = 0)
+    ResponseTime=keys.responses-t0;%every response-key press, s since the first trigger
     keys.report(t0,length(BlockSeq)-nPad);
-    
-    % savings
-    names=cell(1,3);
-    names{1}='rest';
-    names{2}='bw';
-    names{3}='colour';
+    RunInfo=runInfo(wptr,ifi,t0);%date/time, versions, git commit, screen
+    frameTiming=frameTimingSummary(LogData(:,5),frameMissed,ifi);
+    completed=~escapePressed;
+
+    % savings: onsets and durations measured from the flip time of each
+    % block's first frame (blocks not shown, after Esc, are left out)
+    frameBlock=discretize(LogData(:,1),[blockOnsets inf]);%block-table row of each frame
+    [blockOnsetsMeas,blockDurMeas]=measuredBlockTiming(frameBlock,LogData(:,5),blockOnsets,ifi);
+    names=names3;
     onsets=cell(1,3);
-    onsets{1}=rest_onset;
-    onsets{2}=bw_onset;
-    onsets{3}=colour_onset;
     durations=cell(1,3);
-    durations{1}=DelayTime;
-    durations{2}=BlockTime;
-    durations{3}=BlockTime;
+    for n=1:3
+        isThis=strcmp(blkType,names{n})&~isnan(blockOnsetsMeas);
+        onsets{n}=blockOnsetsMeas(isThis);
+        durations{n}=blockDurMeas(isThis);
+    end
+    % should be the same onsets as collected during the run (rest_onset etc.)
+    if ~isequal(sort([rest_onset bw_onset colour_onset]),sort(blockOnsetsMeas(~isnan(blockOnsetsMeas))))
+        warning('colourProject: block onsets from the frame log differ from those collected during the run; check LogData.');
+    end
+    events=struct('onset',blockOnsetsMeas,'duration',blockDurMeas,'trial_type',{blkType}, ...
+        'condition',blkCond,'colour',{blkColour},'orientation',blkOri, ...
+        'planned_onset',blockOnsets,'planned_duration',blkDur,'block',1:numel(blkCond));
+    shownB=~isnan(blockOnsetsMeas);
+    events=structfun(@(c) c(shownB),events,'UniformOutput',false);
+    writeEventsTsv([FileName '_events.tsv'],events);
 
     FixationData=fixTask.data;%[code t] 1=A->B 2=B->A 3=response
+    LogColumns={'t_predicted','blockCode','phaseStep','alpha','flipOnset'};
+    stimMetadataFile=metaFiles(newest).name;
     save([FileName '_Cond.mat'],'names','onsets','durations','-mat');
     save([FileName '_Eye.mat'],'EyelinkData','-mat');
-    save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','fix_cfg','gammaInfo','bgDesc','-mat');
+    save([FileName '.mat'],'FixationData','LogData','LogColumns','pseudorandomisation','TriggerTime','ResponseTime', ...
+        'fix_cfg','gammaInfo','bgDesc','bgDrive', ...
+        'Sequence','Block','BlockSeq','BlockSeqDir','blkCond','blkType','blkColour','blkOri','blkDur', ...
+        'blockOnsets','blockOnsetsMeas','blockDurMeas','frameBlock','frameMissed','frameFix','frameTiming', ...
+        'completed','tLoopEnd','RunInfo','rngState','cfg','stim_cfg','cal_cfg','stimMetadataFile','sp', ...
+        'orientationList','colourCondLabels','ifi','t0','-mat');
 
     % stop eye tracking (EDF copied before the end screen)
     if cfg.eye_track
@@ -474,6 +539,16 @@ try
     analysis_Fixation(FileName);
 catch err
     if exist('keys','var'), try, keys.release(); catch, end, end
+    % keep whatever was recorded (frame log, triggers, fixation) for an error mid-run
+    if exist('t0','var')
+        try
+            crashFile=[FileName '_crash.mat'];
+            if exist('keys','var'), crashTriggers=keys.triggers; crashResponses=keys.responses; end %#ok<NASGU>
+            save(crashFile,'-regexp','^(?!image$|gratingTexture$).');
+            fprintf(2,'Error during the run: workspace saved to %s\n',crashFile);
+        catch
+        end
+    end
     Priority(0);
     RestoreCluts;
     Screen('CloseAll');
