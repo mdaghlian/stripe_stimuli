@@ -236,12 +236,12 @@ sp=load([pathfile fs 'stimuli' fs 'logfiles' fs metaFiles(newest).name],'stim_pa
 if ~isfield(sp,'background')
     error('Stimuli in %s were made before gamma correction (no background in %s). Regenerate them with makeStimuli.', [pathfile fs 'stimuli'], metaFiles(newest).name);
 end
-bgDrive=round(sp.background.drive);
-fprintf('Background / rest: W drive %d (%s)\n', bgDrive, sp.background.source);
+bgDrive=round(sp.background.drive);   % uniform grey (end screen; background if not radial)
+[bgImage,bgDesc]=loadBackgroundImage([pathfile fs 'stimuli'],sp,[height width]);   % matched grey background, drive 0-255
+fprintf('Background / rest: %s\n', bgDesc);
 
 % FIXATION TASK (fix_cfg in cfg_start)
 fixTask=FixationTask(fix_cfg,width,height);
-Image=uint8(bgDrive*ones(height,width));%matched grey background
 
 % OPEN PSYCHTOOLBOX WINDOW
 try
@@ -253,7 +253,7 @@ try
     HideCursor;
     Screen('BlendFunction',wptr,GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA); 
     ifi=checkRefreshRate(wptr,cfg);%flip interval; aborts unless cfg.expectedHz
-    useIdentityGamma(wptr);%identity gamma table, as in the calibration (RestoreCluts on exit)
+    gammaInfo=useIdentityGamma(wptr);%identity gamma table, as in the calibration (RestoreCluts on exit); read back and saved
     Priority(MaxPriority(wptr));
     
     % load stimuli into memory
@@ -269,7 +269,7 @@ try
     end
 
     % load background
-    textureIndex(1)=Screen('MakeTexture',wptr,Image);
+    textureIndex(1)=Screen('MakeTexture',wptr,bgImage/255,[],[],1);   % float texture, as the gratings
     
     % flip start screen before trigger (idle fixation)
     Screen('DrawTexture',wptr,textureIndex(1),[],[0 0 width height]);
@@ -449,7 +449,7 @@ try
     FixationData=fixTask.data;%[code t] 1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'],'names','onsets','durations','-mat');
     save([FileName '_Eye.mat'],'EyelinkData','-mat');
-    save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','fix_cfg','-mat');
+    save([FileName '.mat'],'FixationData','LogData','pseudorandomisation','TriggerTime','fix_cfg','gammaInfo','bgDesc','-mat');
 
     % stop eye tracking (EDF copied before the end screen)
     if cfg.eye_track

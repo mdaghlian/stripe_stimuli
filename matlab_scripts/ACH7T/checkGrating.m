@@ -58,7 +58,9 @@ bgDrive = round(sp.background.drive);
 nPhase  = sp.stim_cfg.nPhaseSteps;
 if mod(nPhase, 2), error('checkGrating: stim_cfg.nPhaseSteps must be even (half a cycle = nPhaseSteps/2 frames).'); end
 thetaList = sp.stim_cfg.thetaList;
-fprintf('Stimuli: %s\nDisplay model: %s\nBackground: W drive %d\n', metaFiles(newest).name, model.description, bgDrive);
+% background as in colourProject (radial matched grey, or uniform), drive 0-255 at the image size
+[bgImage, bgDesc] = loadBackgroundImage(stimdir, sp, round([cfg.height cfg.width] * sp.cfg.image_frac));
+fprintf('Stimuli: %s\nDisplay model: %s\nBackground: %s\n', metaFiles(newest).name, model.description, bgDesc);
 
 gc = grcheck_cfg;
 width  = cfg.width;
@@ -83,15 +85,16 @@ try
     screenid = cfg.screenid;
     wptr = Screen('OpenWindow', screenid, bgDrive);
     ifi = checkRefreshRate(wptr, cfg);
-    useIdentityGamma(wptr);
+    gammaInfo = useIdentityGamma(wptr);
     Priority(MaxPriority(wptr));
     HideCursor;
     ListenChar(2);
+    bgTex = Screen('MakeTexture', wptr, bgImage / 255, [], [], 1);
     framesPerHalf = max(1, round(1 / (2 * gc.flickerHz * ifi)));
     fprintf('Flicker: %.1f Hz (%d frame(s) per field)\n', 1 / (2 * framesPerHalf * ifi), framesPerHalf);
 
     % instructions
-    Screen('FillRect', wptr, bgDrive);
+    Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
     DrawFormattedText(wptr, ['Look at the dot. Make the flicker disappear.\n\n' ...
         '1 = darker    2 = brighter    3 = done\n\nPress 1 to start'], 'center', 'center', 255);
     Screen('Flip', wptr);
@@ -125,7 +128,7 @@ try
 
         start = min(1 + gc.jitter * (2 * rand - 1), rMax);
         value = start;
-        tex = makeFrames(A, B, LRa, LRb, mask, value, bgDrive, model, wptr, []);
+        tex = makeFrames(A, B, LRa, LRb, mask, value, bgImage, model, wptr, []);
         adjusted = false;
         ks = struct('key', 0, 't0', 0, 'tLast', 0, 'needRelease', true);
         frame = 0;
@@ -146,10 +149,10 @@ try
                     break
                 case 'dark'
                     value = value / (1 + gc.step); adjusted = true; nSteps = nSteps + 1;
-                    tex = makeFrames(A, B, LRa, LRb, mask, value, bgDrive, model, wptr, tex);
+                    tex = makeFrames(A, B, LRa, LRb, mask, value, bgImage, model, wptr, tex);
                 case 'light'
                     value = min(value * (1 + gc.step), rMax); adjusted = true; nSteps = nSteps + 1;
-                    tex = makeFrames(A, B, LRa, LRb, mask, value, bgDrive, model, wptr, tex);
+                    tex = makeFrames(A, B, LRa, LRb, mask, value, bgImage, model, wptr, tex);
                 case 'done'
                     if adjusted, break; end
             end
@@ -159,7 +162,7 @@ try
         results(t, :) = [b, theta, s, start, value, GetSecs - tStart, nSteps];
         fprintf('band %d, %d deg: r = %.3f\n', b, theta, value);
         % short blank between trials
-        Screen('FillRect', wptr, bgDrive);
+        Screen('DrawTexture', wptr, bgTex, [], [0 0 width height]);
         Screen('FillOval', wptr, [0 255 0], fixRect);
         Screen('Flip', wptr);
         WaitSecs(0.5);
@@ -191,7 +194,7 @@ try
         'columns', {{'band', 'orientation', 'phaseStep', 'start', 'final', 'duration_s', 'nSteps'}}, ...
         'complete', ~stopped, 'bands', bands, 'r', r_mean, 'r_sd', r_sd, 'nDone', nDone, ...
         'stripeContrast', contrast, 'stim_metadata', metaFiles(newest).name, ...
-        'grcheck_cfg', gc, 'key_cfg', key_cfg, 'model', model.description, 'bgDrive', bgDrive, ...
+        'grcheck_cfg', gc, 'key_cfg', key_cfg, 'model', model.description, 'bgDrive', bgDrive, 'background', bgDesc, 'gammaInfo', gammaInfo, ...
         'display', struct('refreshHz', 1 / ifi, 'framesPerHalf', framesPerHalf, ...
             'flickerHz', 1 / (2 * framesPerHalf * ifi), 'screenid', screenid), ...
         'timestamp', datestr(now, 'yyyy-mm-dd_HHMMSS'));
@@ -219,7 +222,7 @@ end
 end
 
 
-function tex = makeFrames(A, B, LRa, LRb, mask, r, bgDrive, model, wptr, oldTex)
+function tex = makeFrames(A, B, LRa, LRb, mask, r, bgImage, model, wptr, oldTex)
 % The two flicker frames as textures: the grating frames A and B inside the
 % band, with their red luminance scaled by r, and the background outside.
 % Float textures drawn full screen, as in colourProject.
@@ -228,7 +231,7 @@ frames = {A, B};
 LR = {LRa, LRb};
 tex = zeros(1, 2);
 for f = 1:2
-    img = bgDrive * ones(size(A));
+    img = repmat(bgImage, 1, 1, 3);   % grey background (R = G = B)
     for p = 1:3
         plane = img(:, :, p);
         src = frames{f}(:, :, p);

@@ -104,6 +104,18 @@ stim_cfg.save_screen=0;
 % 
 stim_cfg.colourCondLabels={'bw', 'colour'};
 stim_cfg.FadingTime=1; % duration of each fade in / fade out, s (1 s originally); must be <= BlockTime/2
+% BW grating: Michelson contrast in luminance around the matched grey,
+% L = Lgrey*(1 + bwContrast*sin). 1 = from black to 2 x grey (the 2 Nov 2026
+% stimuli); 0.7 matches the colour grating's RMS L,M,S cone contrast (0.68-0.73
+% across eccentricity for MD, Stockman-Sharpe fundamentals) and keeps the dark
+% stripes off black.
+stim_cfg.bwContrast=0.7;
+% Colour paradigm background/rest: true = the matched grey at each eccentricity
+% (makeStimuli writes stimuli/background.png), so the background equals the
+% BW grating's mean and the colour grating's luminance everywhere; false = one
+% uniform grey (median of the matched grey; brighter than the gratings' mean
+% in the central few degrees when the match varies with eccentricity).
+stim_cfg.radialBackground=true;
 
 
 %% DISPLAY MODEL (displayModel.m) - makeStimuli builds the colour and BW
@@ -141,7 +153,10 @@ rbcheck_cfg.tolerance     = 0.03;              % |m - 1| treated as additive
 gcheck_cfg = struct();
 gcheck_cfg.channels  = {'W', 'R', 'B'};       % one screen per channel ('R', 'G', 'B', 'W'); the stimuli use R, B and W
 gcheck_cfg.pairs     = [0 1; 0 0.5; 0.5 1; 0 0.25];   % checkerboard [lo hi] luminances, fractions of each channel's maximum ([0 0.25]: bottom of the curve, grating troughs)
-gcheck_cfg.ditherPx  = 2;                     % check size in pixels (FrACT: 2; ~27 cycles/deg at the 7T viewing distance)
+gcheck_cfg.ditherPx  = [1 2 4];               % check size(s) in pixels (FrACT: 2; ~27 cycles/deg at the 7T viewing distance).
+                                              % Several sizes: one screen per channel x size. If m changes with check size,
+                                              % neighbouring pixels interact and the test (not the display model) is off.
+                                              % 4 px checks (~13 cycles/deg) may be just visible; match the mean brightness.
 gcheck_cfg.adjust    = true;                  % true: observer sets each surround to match (saved); false: look only at the predicted surrounds
 gcheck_cfg.jitter    = 5;                     % adjust: start = predicted drive +/- up to jitter levels (0 = start at the prediction)
 gcheck_cfg.tolerance = 0.03;                  % adjust: |m - 1| treated as a correct model

@@ -189,7 +189,7 @@ try
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
-    useIdentityGamma(wptr);              % identity gamma table, as in the calibration (RestoreCluts on exit)
+    gammaInfo = useIdentityGamma(wptr);              % identity gamma table, as in the calibration (RestoreCluts on exit)
     Priority(MaxPriority(wptr));
 
     % --- Ring textures ---
@@ -340,7 +340,7 @@ try
 
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
-    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', ...
+    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'gammaInfo', ...
          'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', ...
          'staticFirst', 'startStep', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
 

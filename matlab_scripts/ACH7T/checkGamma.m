@@ -16,8 +16,14 @@ function checkGamma(name_subj, name_sess)
 %       surround's drive than the model predicts;
 %     square darker: the display is brighter there than predicted.
 %
-%   One screen per channel (gcheck_cfg.channels), one square per [lo hi]
-%   pair (gcheck_cfg.pairs, fractions of the channel's maximum luminance).
+%   One screen per channel (gcheck_cfg.channels) and check size
+%   (gcheck_cfg.ditherPx, one or more sizes in pixels), one square per
+%   [lo hi] pair (gcheck_cfg.pairs, fractions of the channel's maximum
+%   luminance). With several check sizes the check tests itself: if m
+%   depends on the size, neighbouring pixels interact (or the projector
+%   processes fine patterns), so the checkerboard's mean is not
+%   (L(dLo) + L(dHi)) / 2 and the test, not the model, is off. A summary of
+%   mean m per channel and size is printed.
 %
 %   gcheck_cfg.adjust = false: look only. Each surround is at the predicted
 %     drive (rounded; the rounding is printed and is ~1% at most).
@@ -42,7 +48,8 @@ if ~exist('name_sess', 'var'), name_sess = 'TestSess'; end
 
 gc    = gcheck_cfg;
 model = displayModel(cal_cfg);
-px    = gc.ditherPx;
+pxList = gc.ditherPx(:)';
+nPx   = numel(pxList);
 fprintf('Gamma check (%s %s)\nDisplay model: %s\n', name_subj, name_sess, model.description);
 if gc.adjust
     dir_base = cfg.dir_base;
@@ -61,7 +68,7 @@ keys = struct('dark', darkKey, 'light', lightKey, 'done', doneKey, 'escape', esc
 try
     screenid = cfg.screenid;
     wptr = Screen('OpenWindow', screenid, 0);
-    useIdentityGamma(wptr);
+    gammaInfo = useIdentityGamma(wptr);
     HideCursor;
     ListenChar(2);
     [width, height] = Screen('WindowSize', wptr);
@@ -76,10 +83,13 @@ try
 
     % Squares: one row per channel x pair
     nC = numel(gc.channels);
-    sq = struct('chan', {}, 'lo', {}, 'hi', {}, 'dLo', {}, 'dHi', {}, 'Lpred', {}, 'dPred', {}, ...
+    nPages = nC * nPx;
+    sq = struct('chan', {}, 'px', {}, 'lo', {}, 'hi', {}, 'dLo', {}, 'dHi', {}, 'Lpred', {}, 'dPred', {}, ...
         'levelStep', {}, 'page', {}, 'outer', {}, 'inner', {}, 'tex', {}, 'label', {});
     for ic = 1:nC
-        c = gc.channels{ic};
+      c = gc.channels{ic};
+      for ipx = 1:nPx
+        px = pxList(ipx);
         for ip = 1:nT
             dLo   = round(model.d(c, gc.pairs(ip, 1) * model.dLmax.(c)));
             dHi   = round(model.d(c, gc.pairs(ip, 2) * model.dLmax.(c)));
@@ -95,22 +105,23 @@ try
             col = chanColour(c, 1);
             img = zeros([size(d), 3], 'uint8');
             for p = 1:3, img(:, :, p) = uint8(col(p) * d); end
-            sq(end+1) = struct('chan', c, 'lo', gc.pairs(ip, 1), 'hi', gc.pairs(ip, 2), ...
+            sq(end+1) = struct('chan', c, 'px', px, 'lo', gc.pairs(ip, 1), 'hi', gc.pairs(ip, 2), ...
                 'dLo', dLo, 'dHi', dHi, 'Lpred', Lpred, 'dPred', dPred, ...
                 'levelStep', (model.dL(c, dPred + 0.5) - model.dL(c, dPred - 0.5)) / Lpred, ...
-                'page', ic, 'outer', outer, 'inner', inner, ...
+                'page', (ic - 1) * nPx + ipx, 'outer', outer, 'inner', inner, ...
                 'tex', Screen('MakeTexture', wptr, img), ...
                 'label', sprintf('[%.2g %.2g]', gc.pairs(ip, 1), gc.pairs(ip, 2))); %#ok<AGROW>
         end
+      end
     end
     nS = numel(sq);
     surround = round([sq.dPred]);   % surround drive of every square
 
     if ~gc.adjust
         % LOOK ONLY: surrounds at the predicted drive; page through the channels
-        fprintf('\nchan  [lo   hi]   dLo/dHi   predicted  surround  rounding  1 level\n');
+        fprintf('\nchan  px  [lo   hi]   dLo/dHi   predicted  surround  rounding  1 level\n');
         for i = 1:nS
-            fprintf('%-4s  [%.2f %.2f]  %3d/%3d   %6.1f    %4d     %+5.1f%%   %4.1f%%\n', sq(i).chan, ...
+            fprintf('%-4s  %2d  [%.2f %.2f]  %3d/%3d   %6.1f    %4d     %+5.1f%%   %4.1f%%\n', sq(i).chan, sq(i).px, ...
                 sq(i).lo, sq(i).hi, sq(i).dLo, sq(i).dHi, sq(i).dPred, surround(i), ...
                 100 * (model.dL(sq(i).chan, surround(i)) / sq(i).Lpred - 1), 100 * sq(i).levelStep);
         end
@@ -118,14 +129,14 @@ try
             'is off at that level. 1 = previous, 2 = next, Esc = end.\n']);
         page = 1;
         while true
-            drawPage(wptr, sq, surround, page, 0, nC, y0);
+            drawPage(wptr, sq, surround, page, 0, nPages, y0);
             KbReleaseWait(key_cfg.device);
             while true
                 [down, ~, kc] = KbCheck(key_cfg.device);
                 if down && (kc(escapeKey) || kc(darkKey) || kc(lightKey)), break; end
             end
             if kc(escapeKey), break; end
-            if kc(lightKey), page = mod(page, nC) + 1; else, page = mod(page - 2, nC) + 1; end
+            if kc(lightKey), page = mod(page, nPages) + 1; else, page = mod(page - 2, nPages) + 1; end
         end
     else
         % ADJUST: match each square in turn, in a random order within each screen
@@ -135,8 +146,8 @@ try
         waitKey(darkKey, escapeKey, key_cfg.device);
 
         order = [];
-        for ic = 1:nC
-            onPage = find([sq.page] == ic);
+        for pg = 1:nPages
+            onPage = find([sq.page] == pg);
             order = [order, onPage(randperm(numel(onPage)))]; %#ok<AGROW>
         end
         % columns of results: [start drive, matched drive, trial duration (s), number of steps]
@@ -150,7 +161,7 @@ try
             nSteps = 0;
             tStart = GetSecs;
             while true
-                drawPage(wptr, sq, surround, sq(i).page, i, nC, y0);
+                drawPage(wptr, sq, surround, sq(i).page, i, nPages, y0);
                 [action, ks] = flickerKeys(ks, keys, key_cfg);
                 switch action
                     case 'escape'
@@ -174,18 +185,28 @@ try
             if ~isnan(results(i, 2)), m(i) = model.dL(sq(i).chan, results(i, 2)) / sq(i).Lpred; end
         end
         fprintf('\n--- Gamma check (%s) ---\n', model.description);
-        fprintf('chan  [lo   hi]   dLo/dHi   predicted  matched   m      1 level\n');
+        fprintf('chan  px  [lo   hi]   dLo/dHi   predicted  matched   m      1 level\n');
         for i = 1:nS
-            fprintf('%-4s  [%.2f %.2f]  %3d/%3d   %6.1f    %4g     %.3f  %4.1f%%\n', sq(i).chan, ...
+            fprintf('%-4s  %2d  [%.2f %.2f]  %3d/%3d   %6.1f    %4g     %.3f  %4.1f%%\n', sq(i).chan, sq(i).px, ...
                 sq(i).lo, sq(i).hi, sq(i).dLo, sq(i).dHi, sq(i).dPred, results(i, 2), m(i), 100 * sq(i).levelStep);
         end
         if stopped
             fprintf('Stopped early (Esc): not every square was matched.\n');
         end
+        % mean m per channel and check size: does the result depend on the check size?
+        fprintf('\nmean m per channel and check size (rows: channel; columns: %s px)\n', num2str(pxList));
+        for ic = 1:nC
+            mm = arrayfun(@(px) mean(m(strcmp({sq.chan}, gc.channels{ic}) & [sq.px] == px), 'omitnan'), pxList);
+            fprintf('%-4s %s\n', gc.channels{ic}, sprintf('  %.3f', mm));
+        end
+        if nPx > 1
+            fprintf(['If m changes with check size, the checkerboard does not average as assumed\n' ...
+                '(pixel interactions / projector processing): trust the larger checks or a photometer, not the 1-2 px result.\n']);
+        end
         off = abs(m - 1) > gc.tolerance;
         if any(off)
             fprintf('m differs from 1 by more than %.0f%% at: %s. The display model may be off there.\n', ...
-                100 * gc.tolerance, strjoin(arrayfun(@(i) sprintf('%s %s', sq(i).chan, sq(i).label), find(off), 'UniformOutput', false), ', '));
+                100 * gc.tolerance, strjoin(arrayfun(@(i) sprintf('%s %s %dpx', sq(i).chan, sq(i).label, sq(i).px), find(off), 'UniformOutput', false), ', '));
         elseif ~stopped
             fprintf('All m within +/-%.0f%% of 1: the display model matches what the observer sees.\n', 100 * gc.tolerance);
         end
@@ -193,7 +214,7 @@ try
         GammaCheck = struct('squares', rmfield(sq, {'tex', 'outer', 'inner', 'page'}), ...
             'results', results, 'columns', {{'start', 'matched', 'duration_s', 'nSteps'}}, ...
             'm', m, 'order', order, 'complete', ~stopped, ...
-            'gcheck_cfg', gc, 'cal_cfg', cal_cfg, 'key_cfg', key_cfg, 'model', model.description, ...
+            'gcheck_cfg', gc, 'cal_cfg', cal_cfg, 'key_cfg', key_cfg, 'model', model.description, 'gammaInfo', gammaInfo, ...
             'windowSize', [width height], 'screenid', screenid, ...
             'timestamp', datestr(now, 'yyyy-mm-dd_HHMMSS'));
         outFile = [logdir fs 'GammaCheck_' GammaCheck.timestamp '.mat'];
@@ -226,25 +247,33 @@ function plotGammaCheck(G, model, pngFile)
 % right at that level. To the right: more drive was needed, i.e. the display
 % is dimmer there than the model says; to the left: brighter. Labels give
 % the offset in drive levels (one level is a few % of luminance at most, so
-% offsets are small on this scale). Saved as PNG.
+% offsets are small on this scale). One colour/marker per check size. Saved as PNG.
 sq = G.squares;
 chans = unique({sq.chan}, 'stable');
 d = 0:255;
-red = [0.8 0.2 0.2];
+pxList = unique([sq.px]);
+cols = [0.8 0.2 0.2; 0.1 0.45 0.8; 0.2 0.6 0.2; 0.6 0.3 0.7];   % one colour / marker per check size
+mk = 'osd^';
 fig = figure('Name', 'Gamma check', 'Color', 'w', 'Position', [100 100 380 * numel(chans) 400]);
 for ic = 1:numel(chans)
     c = chans{ic};
     subplot(1, numel(chans), ic); hold on;
     plot(d, model.dL(c, d) / model.dLmax.(c), 'k-');
+    h = gobjects(1, numel(pxList));
     for i = find(strcmp({sq.chan}, c))
+        k = mod(find(pxList == sq(i).px) - 1, size(cols, 1)) + 1;
         y = sq(i).Lpred / model.dLmax.(c);
         dm = G.results(i, 2);
-        plot([sq(i).dPred dm], [y y], '-', 'Color', red);
+        if isnan(dm), continue; end
+        plot([sq(i).dPred dm], [y y], '-', 'Color', cols(k, :));
         plot(sq(i).dPred, y, 'ko', 'MarkerFaceColor', 'w');
-        plot(dm, y, 'o', 'Color', red, 'MarkerFaceColor', red);
-        text(min(sq(i).dPred, dm) - 6, y, sprintf('%s  %+g', sq(i).label, dm - round(sq(i).dPred)), ...
-            'HorizontalAlignment', 'right', 'FontSize', 8);
+        h(k) = plot(dm, y, mk(k), 'Color', cols(k, :), 'MarkerFaceColor', cols(k, :));
+        if k == 1
+            text(min(sq(i).dPred, dm) - 6, y, sq(i).label, 'HorizontalAlignment', 'right', 'FontSize', 8);
+        end
     end
+    ok = isgraphics(h);
+    if any(ok), legend(h(ok), arrayfun(@(p) sprintf('%d px', p), pxList(ok), 'UniformOutput', false), 'Location', 'southeast'); end
     xlim([0 255]); ylim([0 1.05]); box on;
     xlabel('drive'); ylabel('luminance (fraction of channel max)');
     title(sprintf('%s   (open: model, filled: observer)', c));
@@ -259,7 +288,7 @@ end
 
 
 function drawPage(wptr, sq, surround, page, active, nC, y0)
-% One channel's screen: every square of that page with its surround; the
+% One screen (channel x check size; nC = number of screens): every square of that page with its surround; the
 % active square (adjust mode) outlined just outside its tile.
 Screen('FillRect', wptr, 0);
 for i = find([sq.page] == page)
@@ -268,7 +297,8 @@ for i = find([sq.page] == page)
     DrawFormattedText(wptr, sq(i).label, sq(i).outer(1), sq(i).outer(4) + 30, 128);
     if i == active, Screen('FrameRect', wptr, 128, sq(i).outer + [-6 -6 6 6], 2); end
 end
-DrawFormattedText(wptr, sprintf('%s   (%d/%d)', sq(find([sq.page] == page, 1)).chan, page, nC), 'center', y0 - 40, 128);
+i1 = find([sq.page] == page, 1);
+DrawFormattedText(wptr, sprintf('%s, %d px checks   (%d/%d)', sq(i1).chan, sq(i1).px, page, nC), 'center', y0 - 40, 128);
 Screen('Flip', wptr);
 end
 

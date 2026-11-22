@@ -120,13 +120,18 @@ LB=model.dL('B',255);           % blue reference: full drive (on its plateau bey
 LR=model.dL('R',redMatch);      % red peak luminance, isoluminant with LB for this observer
 Lgrey=model.dL('W',greyMatch);  % grey luminance isoluminant with LB for this observer
 
-% BW grating: 0 to 2 x Lgrey, sinusoidal in LUMINANCE, so its mean
-% luminance equals the matched grey, i.e. the colour grating's luminance
-% for this observer (the x2 of Nasr's/LW's generators, applied in
-% luminance rather than in drive).
-if any(2*Lgrey(:) > model.dLmax.W)
-    warning('makeStimuli: BW peak (2 x matched grey) exceeds the W maximum at %.1f%% of pixels; clipped there.', ...
-        100*mean(2*Lgrey(:) > model.dLmax.W));
+% BW grating: Lgrey*(1 + c*sin), sinusoidal in LUMINANCE with Michelson
+% contrast c = stim_cfg.bwContrast, so its mean luminance equals the matched
+% grey, i.e. the colour grating's luminance for this observer. c = 1 gives
+% 0 to 2 x Lgrey (the x2 of Nasr's/LW's generators, applied in luminance
+% rather than in drive).
+bwC=1;
+if isfield(stim_cfg,'bwContrast') && ~isempty(stim_cfg.bwContrast), bwC=stim_cfg.bwContrast; end
+if bwC<=0 || bwC>1, error('makeStimuli: stim_cfg.bwContrast must be in (0, 1].'); end
+fprintf('BW grating contrast: %.2f (luminance %.0f%% to %.0f%% of the matched grey)\n', bwC, 100*(1-bwC), 100*(1+bwC));
+if any((1+bwC)*Lgrey(:) > model.dLmax.W)
+    warning('makeStimuli: BW peak ((1 + contrast) x matched grey) exceeds the W maximum at %.1f%% of pixels; clipped there.', ...
+        100*mean((1+bwC)*Lgrey(:) > model.dLmax.W));
 end
 
 % OPTIONAL R + B ADDITIVITY CORRECTION (checkAdditivityRB.m)
@@ -156,7 +161,20 @@ stim_params.displayModel=modelInfo;
 stim_params.LB=LB;
 stim_params.Lgrey_range=[min(Lgrey(:)) max(Lgrey(:))];
 stim_params.LR_range=[min(LR(:)) max(LR(:))];
-stim_params.background=backgroundLuminance(name_subj,name_sess);   % background/rest level used by colourProject
+stim_params.bwContrast=bwC;
+stim_params.background=backgroundLuminance(name_subj,name_sess);   % uniform background/rest level (other paradigms; colourProject if not radial)
+
+% RADIAL BACKGROUND (stim_cfg.radialBackground): the matched grey at each
+% eccentricity, i.e. the BW grating's mean and the colour grating's
+% luminance for this observer. W drive = greyMatch (model round trip).
+stim_params.radialBackground=isfield(stim_cfg,'radialBackground') && stim_cfg.radialBackground;
+stim_params.backgroundImage='';
+if stim_params.radialBackground
+    bgImg=model.d('W',Lgrey);
+    imwrite(uint16((bgImg/255)*65535),[pathfile fs 'background.png'],'PNG');
+    stim_params.backgroundImage='background.png';
+    fprintf('Radial background: W drive %.1f (centre) to %.1f (outer band), saved as background.png\n', min(bgImg(:)), max(bgImg(:)));
+end
 save(stim_file, 'stim_params');
 
 % GRATING
@@ -186,8 +204,8 @@ for t=1:length(thetaList)
         grating=sin(Xp+phaseRad);%make 2D sinewave
         grating=(grating-min(grating(:)))/(max(grating(:))-min(grating(:)));%normalise to [0,1]
 
-        % achromatic: luminance 2*Lgrey*g -> drive
-        BWgrating=model.d('W',2*Lgrey.*grating);
+        % achromatic: luminance Lgrey*(1 + c*(2g - 1)) -> drive (c = 1: 2*Lgrey*g)
+        BWgrating=model.d('W',Lgrey.*(1+bwC*(2*grating-1)));
         
         % output
         outPicBW=[outFolderBW fs sprintf('%d',step) '.png'];

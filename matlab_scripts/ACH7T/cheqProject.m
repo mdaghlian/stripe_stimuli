@@ -128,7 +128,7 @@ try
     HideCursor;
     Screen('BlendFunction', wptr, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     ifi = checkRefreshRate(wptr, cfg);   % flip interval; aborts unless cfg.expectedHz
-    useIdentityGamma(wptr);              % identity gamma table, as in the calibration (RestoreCluts on exit)
+    gammaInfo = useIdentityGamma(wptr);              % identity gamma table, as in the calibration (RestoreCluts on exit)
     Priority(MaxPriority(wptr));
 
     % --- Load checkerboard frames ---
@@ -257,7 +257,7 @@ try
 
     FixationData = fixTask.data;   % [code, t]  1=A->B 2=B->A 3=response
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
-    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'fix_cfg', ...
+    save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'gammaInfo', 'fix_cfg', ...
          'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', '-mat');
 
     % --- End screen: matched grey, wait for Esc ---

@@ -81,7 +81,7 @@ try
     screenid = cfg.screenid;
     wptr = Screen('OpenWindow', screenid, 0);
     ifi = checkRefreshRate(wptr, cfg);
-    useIdentityGamma(wptr);
+    gammaInfo = useIdentityGamma(wptr);
     Priority(MaxPriority(wptr));
     HideCursor;
     ListenChar(2);
@@ -177,7 +177,7 @@ try
 
     RBadditivity = struct('trials', results, 'columns', {{'stage', 'blueFraction', 'start', 'final'}}, ...
         'k_reps', k_reps, 'k', mean(k_reps), 'blueFractions', p_list, 'm', m_mean, 'm_sd', m_sd, ...
-        'rbcheck_cfg', rc, 'cal_cfg', cal_cfg, 'model', model.description, 'LB', LB, ...
+        'rbcheck_cfg', rc, 'cal_cfg', cal_cfg, 'model', model.description, 'LB', LB, 'gammaInfo', gammaInfo, ...
         'timestamp', datestr(now, 'yyyy-mm-dd_HHMMSS'));
     outFile = [logdir fs 'RBadditivity_' RBadditivity.timestamp '.mat'];
     save(outFile, 'RBadditivity');
