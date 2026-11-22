@@ -11,16 +11,22 @@ function mtLocalizer(name_subj, name_sess, name_run)
 %   Stimulus: thin dark rings on a grey background, filling the screen
 %   (or a circular aperture, mt_cfg.apertureFrac). In moving blocks the rings expand/contract at
 %   mt_cfg.speed_dps, reversing direction every mt_cfg.reversalTime s.
-%   In static blocks the rings are frozen where each moving block ends.
 %   Ring position is computed from the time within the block, not frame
-%   count, so speed does not depend on the refresh rate and every static
-%   block in a run shows exactly the same frame.
+%   count, so speed does not depend on the refresh rate.
 %
-%   Ring phase: each run starts at mt_cfg.startPhaseFrac, cycled by run
-%   number (default [0 0.5]: odd runs 0, even runs half a period), so the
-%   frozen rings are not at the same eccentricities in every run.
-%   name_run must therefore be a whole number; for a repeated run, use the
-%   next unused number.
+%   Static ring phase: every static block in a run freezes the rings at a
+%   different phase. With N static blocks the phases are spaced 1/N of a
+%   ring period apart (from a random offset per run) and shuffled, so
+%   averaged over the static blocks of one run the rings cover the screen
+%   evenly (no holes as long as period/N <= ring width; a warning is
+%   printed otherwise) and the static condition carries no fixed ring
+%   pattern. Each moving block is placed so that it ends exactly at the
+%   phase of the static block that follows it (or, for a final moving
+%   block, starts at the phase of the one before), so the step change in
+%   phase falls at a motion onset, never inside a static block. The
+%   phases are saved (blockStep, phaseOffsetFrac) and logged per frame.
+%   name_run must be a whole number; for a repeated run, use the next
+%   unused number.
 %
 %   Timing: initial rest, then mt_cfg.nCycles x (static + moving) blocks,
 %   then end rest. Whether each pair starts with static or moving is
@@ -44,8 +50,7 @@ if ~exist('name_run',   'var'), name_run   = 1;          end
 if ischar(name_run) || isstring(name_run)
     name_run = str2double(name_run);
 end
-% The ring phase is chosen by run number, and '3b' would become NaN
-% (RunNaN files), so stop here, before the window opens.
+% '3b' would become NaN (RunNaN files), so stop here, before the window opens.
 if ~(isscalar(name_run) && isfinite(name_run) && name_run >= 1 && name_run == round(name_run))
     error('name_run must be a whole number >= 1 (for a repeated run, use the next unused number).');
 end
@@ -107,14 +112,12 @@ bgLum          = stim_params_mt.bgLum;
 px_per_deg_image  = stim_params_mt.px_per_deg;    % half-resolution image px
 px_per_deg_screen = px_per_deg_image / stim_params_mt.cfg.image_frac;
 
-% Ring start phase for this run, cycled by run number through
-% mt_cfg.startPhaseFrac (fractions of a period). Every static block shows
-% this phase, so a fixed start would freeze the rings at the same
-% eccentricities in every run. With [0 0.5] the frozen-ring pattern cancels
-% over an even number of runs, and odd minus even runs isolates it.
-if isfield(mt_cfg, 'startPhaseFrac'), phaseFrac = mt_cfg.startPhaseFrac; else, phaseFrac = [0 0.5]; end
-iPhase    = mod(name_run - 1, numel(phaseFrac)) + 1;
-startStep = mod(round(phaseFrac(iPhase) * nPhaseSteps), nPhaseSteps);
+ringWidth_deg  = stim_params_mt.mt_cfg.ringWidth_deg;
+
+% MATLAB starts every session with the same random seed, so without this
+% the pair order and ring phases would repeat whenever MATLAB is restarted.
+rng('shuffle');
+rngState = rng;
 
 runDir   = [pathfile fs 'Run_' sprintf('%d', name_run)];
 if exist(runDir,'dir')~=7
@@ -156,10 +159,58 @@ for b = 1:numel(BlockList)
 end
 totalDuration = t;
 
+% -------------------------------------------------------------------------
+% Ring phase of every block (in phase steps; frame index = mod(step, nPhaseSteps) + 1)
+% -------------------------------------------------------------------------
+% Moving blocks: the rings move out and back (direction reverses every
+% reversalTime s), a triangle wave in steps; moveSteps(tLocal) is the
+% displacement from the block's start phase. It is a function of the time
+% within the block, not accumulated frame by frame (that drifted at every
+% reversal).
+stepsPerSec = speed_dps / ringPeriod_deg * nPhaseSteps;   % phase steps per second
+moveSteps   = @(tLocal) startDir * stepsPerSec * ...
+              (reversalTime * mod(floor(tLocal / reversalTime), 2) + ...
+               (-1) .^ floor(tLocal / reversalTime) .* mod(tLocal, reversalTime));
+moveEnd     = moveSteps(MovingTime);   % displacement at the end of a moving block (0 with the defaults)
+
+% Static blocks: N phases 1/N of a period apart from a random offset,
+% shuffled, so the static blocks of one run together cover the period.
+isStatic  = strcmp({BlockList.type}, 'static');
+isMoving  = strcmp({BlockList.type}, 'moving');
+nStatic   = sum(isStatic);
+phaseOffsetFrac = rand;
+staticSteps = mod(round((phaseOffsetFrac + (0:nStatic-1) / nStatic) * nPhaseSteps), nPhaseSteps);
+staticSteps = staticSteps(randperm(nStatic));
+blockStep   = nan(1, numel(BlockList));   % ring phase of each block (static: shown; moving: start)
+blockStep(isStatic) = staticSteps;
+
+% Largest spacing between neighbouring static phases vs the ring width:
+% if the spacing is wider, the averaged static rings leave gaps.
+sortedSteps = sort(staticSteps);
+maxGap_deg  = max(diff([sortedSteps, sortedSteps(1) + nPhaseSteps])) / nPhaseSteps * ringPeriod_deg;
+if maxGap_deg > ringWidth_deg + 1e-9
+    warning('mtLocalizer: static ring phases up to %.3f deg apart, wider than the rings (%.3f deg): averaged over the static blocks the rings leave gaps. Use more cycles (nCycles) or wider rings.', ...
+            maxGap_deg, ringWidth_deg);
+end
+
+% Moving blocks end at the phase of the next static block, so the
+% moving -> static change is seamless and the phase jump falls at a motion
+% onset; a moving block with no static block after it starts at the
+% phase of the one before it.
+staticIdxList = find(isStatic);
+for b = find(isMoving)
+    nextS = staticIdxList(find(staticIdxList > b, 1));
+    if ~isempty(nextS)
+        blockStep(b) = blockStep(nextS) - moveEnd;
+    else
+        blockStep(b) = blockStep(staticIdxList(find(staticIdxList < b, 1, 'last')));
+    end
+end
+
 fprintf('\n--- mtLocalizer: %s / %s / Run %d ---\n', name_subj, name_sess, name_run);
 fprintf('Pair order: %s then %s\n', pairTypes{1}, pairTypes{2});
-fprintf('Ring phase: start step %d of %d (%.2f deg; entry %d of startPhaseFrac, saved as startStep)\n', ...
-        startStep, nPhaseSteps, startStep / nPhaseSteps * ringPeriod_deg, iPhase);
+fprintf('Static ring phases (step of %d, in block order): %s  (offset %.3f period, max spacing %.3f deg, ring width %.3f deg)\n', ...
+        nPhaseSteps, num2str(blockStep(isStatic)), phaseOffsetFrac, maxGap_deg, ringWidth_deg);
 fprintf('Predicted run duration: %.1f s\n', totalDuration);
 t_end = datetime('now') + seconds(totalDuration);
 fprintf('Expected end time: %s\n\n', datestr(t_end, 'HH:MM:SS'));
@@ -225,28 +276,17 @@ try
 
     % ---- Log structures ----
     % Frame log, preallocated for up to 240 Hz (+10 s margin) and trimmed after the loop.
-    % columns: [elapsed, blockCode (0 rest, 1 static, 2 moving), phaseIdx, direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
+    % columns: [elapsed, blockCode (0 rest, 1 static, 2 moving), phaseIdx (ring frame 1..nPhaseSteps, 0 = rest), direction, flipOnset], flipOnset = Screen('Flip') StimulusOnsetTime - t0 (PTB GetSecs clock, s)
     LogData      = nan(ceil((totalDuration + 10) * 240), 5);
     frameBlock   = zeros(size(LogData, 1), 1);   % BlockList index of each logged frame
     nLog         = 0;
     img_count    = 0;
 
     % Frame timing: each frame's stimulus is computed for its predicted
-    % onset (previous flip + one refresh interval, s since trigger 1).
-    % Ring position is a function of the time within the moving block: the
-    % rings move out and back (direction reverses every reversalTime s), a
-    % triangle wave in steps. It is not accumulated frame by frame: that
-    % gave each frame's whole interval to one direction, so frames across a
-    % reversal moved the wrong way and the frozen static phase wandered by
-    % up to ~0.4 deg over a run. After a dropped frame it still skips ahead.
-    stepsPerSec = speed_dps / ringPeriod_deg * nPhaseSteps;   % phase steps per second
-    ringStep    = @(tLocal) startStep + startDir * stepsPerSec * ...
-                  (reversalTime * mod(floor(tLocal / reversalTime), 2) + ...
-                   (-1) ^ floor(tLocal / reversalTime) * mod(tLocal, reversalTime));
-    % Static blocks show where every moving block ends; with the default
-    % settings (an even number of reversals per block) that is startStep.
-    staticIdx   = mod(round(ringStep(MovingTime)), nPhaseSteps) + 1;
-    phaseIdx    = staticIdx;
+    % onset (previous flip + one refresh interval, s since trigger 1), with
+    % the ring phase from blockStep / moveSteps (above). After a dropped
+    % frame the rings still skip ahead to the right place.
+    phaseIdx    = 0;   % 0 = no rings (rest)
 
     % -----------------------------------------------------------------------
     % Main loop
@@ -276,17 +316,18 @@ try
             case 'rest'
                 blockCode = 0;
                 direction = 0;
+                phaseIdx  = 0;
             case 'static'
-                % rings frozen where every moving block ends
+                % rings frozen at this static block's own phase
                 blockCode = 1;
                 direction = 0;
-                phaseIdx  = staticIdx;
+                phaseIdx  = mod(blockStep(curB), nPhaseSteps) + 1;
                 Screen('DrawTexture', wptr, ringTex(phaseIdx), [], [0 0 width height]);
             case 'moving'
                 % direction reverses every reversalTime s within the block
                 blockCode = 2;
                 direction = startDir * (-1) ^ floor(localElapsed / reversalTime);
-                phaseIdx  = mod(round(ringStep(localElapsed)), nPhaseSteps) + 1;
+                phaseIdx  = mod(round(blockStep(curB) + moveSteps(localElapsed)), nPhaseSteps) + 1;
                 Screen('DrawTexture', wptr, ringTex(phaseIdx), [], [0 0 width height]);
         end
 
@@ -342,7 +383,7 @@ try
     save([FileName '_Cond.mat'], 'names', 'onsets', 'durations', '-mat');
     save([FileName '.mat'], 'FixationData', 'LogData', 'TriggerTime', 'gammaInfo', ...
          'BlockList', 'blockOnsets', 'blockOnsetsMeas', 'blockDurMeas', 'frameBlock', ...
-         'staticFirst', 'startStep', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
+         'staticFirst', 'blockStep', 'phaseOffsetFrac', 'rngState', 'mt_cfg', 'fix_cfg', 'px_per_deg_image', 'px_per_deg_screen', '-mat');
 
     % --- End screen: matched grey, wait for Esc ---
     if escapePressed, endState = 'stopped early (Esc)'; else, endState = 'completed'; end

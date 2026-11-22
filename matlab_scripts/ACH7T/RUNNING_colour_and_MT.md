@@ -106,7 +106,7 @@ Each run:
 ## If something goes wrong
 
 - **Stop a run:** Esc during the run (saved as `stopped early`), Esc again to continue. Redo it with the **next unused whole number**, not a letter. Don't reuse numbers, because the files get overwritten. A letter (`'3b'`) gave `RunNaN` files; `mtLocalizer` now refuses it.
-  - MT: the run number sets the ring phase (odd runs 0, even runs half a period), so redo with a number of the same parity, e.g. stopped run 3 → `mtLocalizer(subjid,sesid,11)`. Note the swap in the scan notes.
+  - MT: any unused number works (the ring phases are chosen at random for each run, not by run number). Note the swap in the scan notes.
 - **Esc while waiting for the trigger:** nothing saved; rerun the same number.
 - **Esc during blue or red:** the settings so far are kept (`..._stoppedEarly.mat`) but no fit is made; rerun that task from the start.
 - **Errors:**
