@@ -123,24 +123,34 @@ if name_run == 1
     pseudorandomisation(pseudorandomisation ~= 0) = 1;           % set colour blocks to 1
 
 else
-    % --- Subsequent runs: load the colour/BW pattern from the most recent
-    %     earlier run that has a log (all runs share the same pattern, so an
-    %     aborted or skipped run doesn't block the next one) and generate a
-    %     new sequence that preserves the same pattern ---
+    % --- Subsequent runs: odd runs use run 1's colour/BW pattern, even runs
+    %     its complement (colour <-> BW), so the colour - BW regressor flips
+    %     sign between odd and even runs and anything time-locked to the
+    %     block order cancels across runs (stripes_review C1). The pattern
+    %     is taken from the most recent earlier run that has a log (so an
+    %     aborted or skipped run doesn't block the next one) and flipped if
+    %     that run's parity differs from this one's ---
     FileName_old='';
+    rFound=0;
     for r=name_run-1:-1:1
         candidate=[pathfile fs 'Run_' sprintf('%d',r) fs 'logfiles' fs name_subj '_' name_sess '_Run' sprintf('%d',r) '_colour.mat'];
         if exist(candidate,'file')==2 && ~isempty(whos('-file',candidate,'pseudorandomisation'))
             FileName_old=candidate;
+            rFound=r;
             break
         end
     end
     if isempty(FileName_old)
         error('Run %d: no earlier run log with a bw/colour pattern in %s. Run 1 first (or set name_run=1).', name_run, pathfile);
     end
-    fprintf('Using bw/colour pattern from %s\n', FileName_old);
     load(FileName_old, 'pseudorandomisation');
-    
+    if mod(name_run-rFound,2)==1
+        pseudorandomisation=1-pseudorandomisation;
+        fprintf('Using the COMPLEMENT of the bw/colour pattern from %s\n', FileName_old);
+    else
+        fprintf('Using the same bw/colour pattern as %s\n', FileName_old);
+    end
+
     redo=1;
     while redo
         redo=0;

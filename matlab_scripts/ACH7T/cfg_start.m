@@ -109,7 +109,7 @@ stim_cfg.FadingTime=1; % duration of each fade in / fade out, s (1 s originally)
 % stimuli); 0.7 matches the colour grating's RMS L,M,S cone contrast (0.68-0.73
 % across eccentricity for MD, Stockman-Sharpe fundamentals) and keeps the dark
 % stripes off black.
-stim_cfg.bwContrast=0.7;
+stim_cfg.bwContrast=1.0; % 1.0 for sub-1102_c ses-2 (comparable with 2 Nov; colour already drives more than bw, so 0.7 widens the gap)
 % Colour paradigm background/rest: false = one uniform grey (median of the
 % matched grey; brighter than the gratings' mean in the central few degrees
 % when the match varies with eccentricity: ~0.6 x at 0.7 deg for sub-1102_c, so
